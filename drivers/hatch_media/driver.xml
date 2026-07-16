@@ -1,0 +1,404 @@
+<devicedata>
+  <name>Hatch Sound Machine</name>
+  <version/>
+  <manufacturer>Hatch</manufacturer>
+  <model>Hatch Sound Machine</model>
+  <creator>Finite Labs</creator>
+  <small image_source="c4z">icons/device_sm.png</small>
+  <large image_source="c4z">icons/device_lg.png</large>
+  <control>lua_gen</control>
+  <controlmethod>other</controlmethod>
+  <driver>DriverWorks</driver>
+  <copyright>Copyright 2026 Finite Labs, LLC. All rights reserved.</copyright>
+  <created>07/13/2026 12:00:00 PM</created>
+  <modified/>
+  <minimum_os_version>3.3.0</minimum_os_version>
+  <composer_categories>
+    <category>Audio/Video</category>
+  </composer_categories>
+  <config>
+    <script file="driver.lua" jit="1"/>
+    <documentation file="www/documentation/index.html"/>
+    <properties>
+      <property>
+        <name>Driver Settings</name>
+        <type>LABEL</type>
+        <default>Driver Settings</default>
+      </property>
+      <property>
+        <name>Driver Status</name>
+        <type>STRING</type>
+        <default/>
+        <readonly>true</readonly>
+      </property>
+      <property>
+        <name>Log Level</name>
+        <type>LIST</type>
+        <default>3 - Info</default>
+        <items>
+          <item>0 - Fatal</item>
+          <item>1 - Error</item>
+          <item>2 - Warning</item>
+          <item>3 - Info</item>
+          <item>4 - Debug</item>
+          <item>5 - Trace</item>
+          <item>6 - Ultra</item>
+        </items>
+      </property>
+      <property>
+        <name>Log Mode</name>
+        <type>LIST</type>
+        <default>Off</default>
+        <items>
+          <item>Off</item>
+          <item>Print</item>
+          <item>Log</item>
+          <item>Print and Log</item>
+        </items>
+      </property>
+    </properties>
+    <actions/>
+    <commands>
+      <command>
+        <name>Play Sound</name>
+        <description>Play sound PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Sound</name>
+            <type>DYNAMIC_LIST</type>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Play Favorite</name>
+        <description>Play favorite PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Favorite</name>
+            <type>DYNAMIC_LIST</type>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Stop</name>
+        <description>Stop playback on NAME</description>
+      </command>
+    </commands>
+  </config>
+  <capabilities>
+    <!-- Amplifier (proxybindingid 5002) capabilities. Without these Control4 does
+         not treat the amplifier as an audio path source, so its Audio End-Point
+         (connection 7001: AUDIO_SELECTION + AUDIO_VOLUME) never materializes and
+         the device cannot be added as a room audio endpoint. Mirrors WiiM Pro. -->
+    <throttled_vol_ms_rate>250</throttled_vol_ms_rate>
+    <audio_consumer_count>2</audio_consumer_count>
+    <audio_provider_count>1</audio_provider_count>
+    <has_discrete_volume_control>True</has_discrete_volume_control>
+    <has_up_down_volume_control>True</has_up_down_volume_control>
+    <has_discrete_mute_control>True</has_discrete_mute_control>
+    <has_toggle_mute_control>True</has_toggle_mute_control>
+    <has_discrete_input_select>False</has_discrete_input_select>
+    <has_toad_input_select>False</has_toad_input_select>
+    <has_discrete_bass_control>False</has_discrete_bass_control>
+    <has_discrete_treble_control>False</has_discrete_treble_control>
+    <has_up_down_bass_control>False</has_up_down_bass_control>
+    <has_up_down_treble_control>False</has_up_down_treble_control>
+    <has_video>False</has_video>
+    <has_video_signal_sense>False</has_video_signal_sense>
+    <has_audio_signal_sense>False</has_audio_signal_sense>
+    <video_consumer_count>0</video_consumer_count>
+    <video_provider_count>0</video_provider_count>
+    <can_upclass>True</can_upclass>
+    <can_downclass>True</can_downclass>
+    <allow_as_path_source>True</allow_as_path_source>
+    <navigator_display_option proxybindingid="5001"/>
+    <hide_in_list_nav>False</hide_in_list_nav>
+    <hide_in_media>True</hide_in_media>
+    <digital_audio_support>False</digital_audio_support>
+    <can_select>False</can_select>
+    <can_scan_media>False</can_scan_media>
+    <ui_selects_device>False</ui_selects_device>
+    <dont_auto_select_path_on_media>True</dont_auto_select_path_on_media>
+    <HasGeneratesStartMediaDialog>true</HasGeneratesStartMediaDialog>
+    <UI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" proxybindingid="5001">
+      <DeviceIcon>device</DeviceIcon>
+      <BrandingIcon>device</BrandingIcon>
+      <Icons>
+        <IconGroup id="device">
+          <Icon width="70" height="70">controller://driver/hatch_media/icons/experience_70.png</Icon>
+          <Icon width="90" height="90">controller://driver/hatch_media/icons/experience_90.png</Icon>
+          <Icon width="300" height="300">controller://driver/hatch_media/icons/experience_300.png</Icon>
+          <Icon width="512" height="512">controller://driver/hatch_media/icons/experience_512.png</Icon>
+          <Icon width="1024" height="1024">controller://driver/hatch_media/icons/experience_1024.png</Icon>
+        </IconGroup>
+      </Icons>
+      <Tabs>
+        <Command>
+          <Name>GetTabList</Name>
+          <Type>PROTOCOL</Type>
+        </Command>
+      </Tabs>
+      <Screens>
+        <Screen xsi:type="ListScreenType">
+          <Id>SoundsScreen</Id>
+          <DataCommand>
+            <Name>BrowseSounds</Name>
+            <Type>PROTOCOL</Type>
+            <Params>
+              <Param>
+                <Name>screenId</Name>
+                <Type>SYSTEM</Type>
+                <Value>screenId</Value>
+              </Param>
+              <Param>
+                <Name>tabId</Name>
+                <Type>SYSTEM</Type>
+                <Value>tabId</Value>
+              </Param>
+            </Params>
+          </DataCommand>
+          <RequiresRefresh>true</RequiresRefresh>
+          <PaginationStyle>NONE</PaginationStyle>
+          <List>
+            <ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+            <ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+            <TitleProperty>title</TitleProperty>
+            <SubTitleProperty>subtitle</SubTitleProperty>
+            <ImageProperty>image_list</ImageProperty>
+          </List>
+        </Screen>
+        <Screen xsi:type="ListScreenType">
+          <Id>FavoritesScreen</Id>
+          <DataCommand>
+            <Name>BrowseFavorites</Name>
+            <Type>PROTOCOL</Type>
+            <Params>
+              <Param>
+                <Name>screenId</Name>
+                <Type>SYSTEM</Type>
+                <Value>screenId</Value>
+              </Param>
+              <Param>
+                <Name>tabId</Name>
+                <Type>SYSTEM</Type>
+                <Value>tabId</Value>
+              </Param>
+            </Params>
+          </DataCommand>
+          <RequiresRefresh>true</RequiresRefresh>
+          <PaginationStyle>NONE</PaginationStyle>
+          <List>
+            <ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+            <ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+            <TitleProperty>title</TitleProperty>
+            <SubTitleProperty>subtitle</SubTitleProperty>
+            <ImageProperty>image_list</ImageProperty>
+          </List>
+        </Screen>
+      </Screens>
+      <NowPlaying>
+        <List>
+          <TitleProperty>title</TitleProperty>
+          <SubTitleProperty>subtitle</SubTitleProperty>
+          <ImageProperty>image_list</ImageProperty>
+        </List>
+      </NowPlaying>
+      <Actions>
+        <Action>
+          <Id>PlaySound</Id>
+          <Name>Play Sound</Name>
+          <Command>
+            <Name>PlaySound</Name>
+            <Type>PROTOCOL</Type>
+            <Params>
+              <Param>
+                <Name>soundId</Name>
+                <Type>FIRST_SELECTED</Type>
+                <Value>soundId</Value>
+              </Param>
+              <Param>
+                <Name>extraRooms</Name>
+                <Type>START_MEDIA_ROOMS</Type>
+                <Value>extraRooms</Value>
+              </Param>
+            </Params>
+          </Command>
+          <GeneratesStartMediaDialog>true</GeneratesStartMediaDialog>
+        </Action>
+        <Action>
+          <Id>PlayFavorite</Id>
+          <Name>Play Favorite</Name>
+          <Command>
+            <Name>PlayFavorite</Name>
+            <Type>PROTOCOL</Type>
+            <Params>
+              <Param>
+                <Name>favoriteId</Name>
+                <Type>FIRST_SELECTED</Type>
+                <Value>favoriteId</Value>
+              </Param>
+              <Param>
+                <Name>extraRooms</Name>
+                <Type>START_MEDIA_ROOMS</Type>
+                <Value>extraRooms</Value>
+              </Param>
+            </Params>
+          </Command>
+          <GeneratesStartMediaDialog>true</GeneratesStartMediaDialog>
+        </Action>
+      </Actions>
+      <Dashboard>
+        <Transport>
+          <Id>Play</Id>
+          <ButtonType>PLAY</ButtonType>
+          <ReleaseCommand>
+            <Name>PLAY</Name>
+            <Type>PROTOCOL</Type>
+          </ReleaseCommand>
+        </Transport>
+        <Transport>
+          <Id>Stop</Id>
+          <ButtonType>STOP</ButtonType>
+          <ReleaseCommand>
+            <Name>STOP</Name>
+            <Type>PROTOCOL</Type>
+          </ReleaseCommand>
+        </Transport>
+      </Dashboard>
+    </UI>
+  </capabilities>
+  <proxies>
+    <proxy proxybindingid="5001" name="Hatch Sound Machine" image_source="c4z" small_image="icons/device_sm.png" largeimage="icons/device_lg.png">media_service</proxy>
+    <proxy proxybindingid="5002" name="Hatch Player">amplifier</proxy>
+  </proxies>
+  <connections>
+    <connection>
+      <id>5001</id>
+      <type>2</type>
+      <connectionname>Hatch Sound Machine</connectionname>
+      <consumer>False</consumer>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>MediaService</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection>
+      <id>5002</id>
+      <type>2</type>
+      <connectionname>AVSWITCH</connectionname>
+      <consumer>False</consumer>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>AVSWITCH</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection proxybindingid="5001">
+      <id>4100</id>
+      <type>6</type>
+      <connectionname>Local Audio</connectionname>
+      <consumer>False</consumer>
+      <linelevel>False</linelevel>
+      <idautobind>101</idautobind>
+      <classes>
+        <class>
+          <classname>RF_HATCH_MUSIC</classname>
+          <autobind>True</autobind>
+        </class>
+      </classes>
+    </connection>
+    <connection proxybindingid="5002">
+      <id>3100</id>
+      <type>6</type>
+      <connectionname>Local Audio</connectionname>
+      <consumer>True</consumer>
+      <linelevel>False</linelevel>
+      <idautobind>101</idautobind>
+      <classes>
+        <class>
+          <classname>RF_HATCH_MUSIC</classname>
+          <autobind>True</autobind>
+        </class>
+      </classes>
+    </connection>
+    <connection proxybindingid="5001">
+      <id>4000</id>
+      <type>6</type>
+      <connectionname>Network Audio</connectionname>
+      <consumer>False</consumer>
+      <linelevel>False</linelevel>
+      <idautobind>26101</idautobind>
+      <classes>
+        <class>
+          <classname>RF_HATCH_NET_ZONE</classname>
+          <autobind>True</autobind>
+        </class>
+      </classes>
+    </connection>
+    <connection proxybindingid="5002">
+      <id>3000</id>
+      <type>6</type>
+      <connectionname>Network Audio</connectionname>
+      <consumer>True</consumer>
+      <linelevel>False</linelevel>
+      <idautobind>26102</idautobind>
+      <classes>
+        <class>
+          <classname>RF_HATCH_NET_AUDIO</classname>
+          <autobind>True</autobind>
+        </class>
+      </classes>
+    </connection>
+    <!-- The amplifier's audio output: the Hatch's built-in speaker. A media/amp
+         device needs at least one type-6 audio provider (this) for Control4 to
+         create its Audio End-Point (7001). Terminal: it is the speaker itself,
+         so it is not bound to anything downstream. -->
+    <connection proxybindingid="5002">
+      <id>4001</id>
+      <type>6</type>
+      <connectionname>Speaker</connectionname>
+      <consumer>False</consumer>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>SPEAKER</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection proxybindingid="5002">
+      <id>7001</id>
+      <type>7</type>
+      <connectionname>Audio End-Point</connectionname>
+      <consumer>False</consumer>
+      <linelevel>True</linelevel>
+      <classes>
+        <class>
+          <classname>AUDIO_SELECTION</classname>
+          <autobind>False</autobind>
+        </class>
+        <class>
+          <classname>AUDIO_VOLUME</classname>
+          <autobind>False</autobind>
+        </class>
+      </classes>
+    </connection>
+    <!-- Binding to the Hatch account coordinator (which device this controls). -->
+    <connection>
+      <id>6001</id>
+      <facing>6</facing>
+      <type>2</type>
+      <connectionname>Hatch Device</connectionname>
+      <consumer>True</consumer>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>HATCH_MEDIA</classname>
+        </class>
+      </classes>
+      <hidden>False</hidden>
+    </connection>
+  </connections>
+</devicedata>

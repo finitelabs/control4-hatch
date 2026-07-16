@@ -1,0 +1,479 @@
+-- Hatch account coordinator.
+--
+-- Owns the single cloud connection for the whole Hatch account (auth -> AWS IoT
+-- MQTT -> device shadows; see src/hatch/*), discovers devices, and exposes a
+-- dynamic binding per device-function that the companion drivers bind to:
+--   HATCH_MEDIA -> hatch_media (sound machine)
+--   HATCH_LIGHT -> hatch_light (night light)
+-- Companions send ENTITY_COMMAND over the binding; the coordinator maps it to a
+-- shadow update. Shadow state is pushed back to companions as UPDATE_STATE.
+
+--#ifdef DRIVERCENTRAL
+require("cloud-client-byte")
+--#endif
+
+require("lib.utils")
+require("drivers-common-public.global.handlers")
+require("drivers-common-public.global.lib")
+require("drivers-common-public.global.timer")
+require("drivers-common-public.global.url")
+
+JSON = require("JSON")
+
+local log = require("lib.logging")
+local bindings = require("lib.bindings")
+local Api = require("hatch.api")
+local Connection = require("hatch.connection")
+local Device = require("hatch.device")
+--#ifndef DRIVERCENTRAL
+local githubUpdater = require("lib.github-updater")
+--#endif
+
+--- Binding namespaces / companion connection classes.
+local NS_MEDIA = "HATCH_MEDIA"
+local NS_LIGHT = "HATCH_LIGHT"
+
+gInitialized = false
+
+local connection = nil
+local api = nil
+--- thing -> device record { name, product, thingName, macAddress }.
+local devicesByThing = {}
+--- thing -> parsed Device state.
+local stateByThing = {}
+--- thing -> { sounds, soundsById, favorites }.
+local catalogByThing = {}
+
+--- Sound machine exists on every Hatch; the night light on all but Rest Mini.
+local function hasLight(product)
+  return product ~= "restMini"
+end
+
+--- Content API product family for a device (riot family shares the "riot" catalog).
+local function catalogProduct(product)
+  if product == "riot" or product == "riotPlus" then
+    return "riot"
+  end
+  return product
+end
+
+--------------------------------------------------------------------------------
+-- Shadow control
+--------------------------------------------------------------------------------
+
+local function control(thing, desired)
+  if connection and desired then
+    connection:updateShadow(thing, desired)
+  end
+end
+
+--------------------------------------------------------------------------------
+-- State push to companions
+--------------------------------------------------------------------------------
+
+--- Best human title for what's currently playing. A favorite/routine (srId is
+--- the favorite id) shows the favorite's name; a raw sound shows the catalog
+--- title, falling back to a favorite step that references the same sound id.
+--- Favorites often play sounds that aren't in the browsable catalog (e.g. Brown
+--- Noise), so a plain soundId->catalog lookup misses and reads "Sound <id>".
+local function resolveNowTitle(state, catalog)
+  local favorites = catalog.favorites or {}
+  if state.playing == "routine" and state.srId and state.srId ~= 0 then
+    for _, fav in ipairs(favorites) do
+      if tonumber(fav.id) == state.srId then
+        return fav.name
+      end
+    end
+  end
+  local soundsById = catalog.soundsById or {}
+  local sound = state.soundId and soundsById[tostring(state.soundId)]
+  if sound and sound.title then
+    return sound.title
+  end
+  if state.soundId then
+    for _, fav in ipairs(favorites) do
+      for _, step in ipairs(fav.steps or {}) do
+        if step.sound and tonumber(step.sound.id) == state.soundId then
+          return step.name or fav.name
+        end
+      end
+    end
+  end
+  return nil
+end
+
+local function pushMediaState(thing)
+  local binding = bindings:getDynamicBinding(NS_MEDIA, thing)
+  if not binding then
+    return
+  end
+  local state = stateByThing[thing] or {}
+  local catalog = catalogByThing[thing] or {}
+  SendToProxy(binding.bindingId, "UPDATE_STATE", {
+    state = SerializeSafe({
+      online = state.online,
+      isPlaying = state.isPlaying,
+      soundId = state.soundId,
+      soundTitle = state.isPlaying and resolveNowTitle(state, catalog) or nil,
+      volumePct = state.volumePct,
+    }),
+    sounds = SerializeSafe(catalog.sounds or {}),
+    favorites = SerializeSafe(catalog.favorites or {}),
+  }, "NOTIFY")
+end
+
+local function pushLightState(thing)
+  local binding = bindings:getDynamicBinding(NS_LIGHT, thing)
+  if not binding then
+    return
+  end
+  local state = stateByThing[thing] or {}
+  SendToProxy(binding.bindingId, "UPDATE_STATE", {
+    state = SerializeSafe({
+      online = state.online,
+      on = state.lightOn,
+      red = state.red,
+      green = state.green,
+      blue = state.blue,
+      brightnessPct = state.brightnessPct,
+    }),
+  }, "NOTIFY")
+end
+
+--------------------------------------------------------------------------------
+-- ENTITY_COMMAND handling (companion -> coordinator -> shadow)
+--------------------------------------------------------------------------------
+
+local function handleMediaCommand(thing, body)
+  local catalog = catalogByThing[thing] or {}
+  local soundsById = catalog.soundsById or {}
+  local command = body.command
+  if command == "play" then
+    local sound = soundsById[tostring(body.soundId)]
+    if sound then
+      control(thing, Device.playSound(sound))
+    end
+  elseif command == "favorite" then
+    control(thing, Device.playFavorite(body.favoriteId))
+  elseif command == "stop" then
+    control(thing, Device.stop())
+  elseif command == "volume" then
+    control(thing, Device.setVolume(tonumber(body.level)))
+  end
+end
+
+-- Brightness to use when turning on or setting a color. An explicit request
+-- wins; otherwise keep the current level. Never resolve to 0: the device treats
+-- a color at intensity 0 as on-but-dark, so a bare "on" (or a color pick from a
+-- fully-off state, where brightnessPct is 0) falls back to full brightness.
+local function onBrightness(body, state)
+  local bri = tonumber(body.brightness) or state.brightnessPct
+  if not bri or bri <= 0 then
+    return 100
+  end
+  return bri
+end
+
+local function handleLightCommand(thing, body)
+  local state = stateByThing[thing] or {}
+  local command = body.command
+  local red = tonumber(body.red) or state.red or 255
+  local green = tonumber(body.green) or state.green or 255
+  local blue = tonumber(body.blue) or state.blue or 255
+  if red == 0 and green == 0 and blue == 0 then
+    red, green, blue = 255, 255, 255
+  end
+  if command == "on" then
+    control(thing, Device.setColor(red, green, blue, onBrightness(body, state), state.playing))
+  elseif command == "off" then
+    control(thing, Device.lightOff(state.playing))
+  elseif command == "setColor" then
+    control(thing, Device.setColor(red, green, blue, onBrightness(body, state), state.playing))
+  elseif command == "setBrightness" then
+    local brightness = tonumber(body.brightness) or 0
+    if brightness <= 0 then
+      control(thing, Device.lightOff(state.playing))
+    else
+      control(thing, Device.setColor(red, green, blue, brightness, state.playing))
+    end
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Dynamic bindings (one per device-function)
+--------------------------------------------------------------------------------
+
+local function setupDeviceBindings(device)
+  local thing = device.thingName
+
+  local mediaBinding =
+    bindings:getOrAddDynamicBinding(NS_MEDIA, thing, "PROXY", true, device.name .. " Sound Machine", NS_MEDIA)
+  if mediaBinding then
+    RFP[mediaBinding.bindingId] = function(_idBinding, strCommand, tParams, _args)
+      if strCommand == "REFRESH_STATE" then
+        pushMediaState(thing)
+      elseif strCommand == "ENTITY_COMMAND" then
+        handleMediaCommand(thing, DeserializeSafe(Select(tParams, "body")) or {})
+      end
+    end
+    OBC[mediaBinding.bindingId] = function()
+      pushMediaState(thing)
+    end
+  end
+
+  if hasLight(device.product) then
+    local lightBinding =
+      bindings:getOrAddDynamicBinding(NS_LIGHT, thing, "PROXY", true, device.name .. " Night Light", NS_LIGHT)
+    if lightBinding then
+      RFP[lightBinding.bindingId] = function(_idBinding, strCommand, tParams, _args)
+        if strCommand == "REFRESH_STATE" then
+          pushLightState(thing)
+        elseif strCommand == "ENTITY_COMMAND" then
+          handleLightCommand(thing, DeserializeSafe(Select(tParams, "body")) or {})
+        end
+      end
+      OBC[lightBinding.bindingId] = function()
+        pushLightState(thing)
+      end
+    end
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Catalog
+--------------------------------------------------------------------------------
+
+local function loadCatalog(device)
+  local thing = device.thingName
+  catalogByThing[thing] = catalogByThing[thing] or {}
+
+  -- Restore devices get their catalog from Contentful GraphQL; everyone else
+  -- from the REST content endpoint (the riot family shares the "riot" catalog).
+  local product = device.product
+  local soundsRequest
+  if product == "restoreV4" or product == "restoreV5" then
+    soundsRequest = api:fetchRestoreSounds(product)
+  else
+    soundsRequest = api:fetchSounds(catalogProduct(product))
+  end
+
+  soundsRequest:next(function(items)
+    local sounds, soundsById = {}, {}
+    for _, s in ipairs(items or {}) do
+      local id = s.id or s.hatchId
+      local url = s.wavUrl or s.url or (s.wavFile and s.wavFile.url) or s.mp3Url
+      local title = s.title or s.name
+      if id and url and title and id ~= Device.NO_SOUND_ID then
+        local sound = { id = id, url = url, title = title }
+        sounds[#sounds + 1] = sound
+        soundsById[tostring(id)] = sound
+      end
+    end
+    catalogByThing[thing].sounds = sounds
+    catalogByThing[thing].soundsById = soundsById
+    log:info("Hatch: %s loaded %d sounds", device.name, #sounds)
+    pushMediaState(thing)
+  end, function(err)
+    log:warn("Hatch: %s sound fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
+  end)
+
+  api:fetchRoutines(device.macAddress):next(function(items)
+    catalogByThing[thing].favorites = items or {}
+    log:info("Hatch: %s loaded %d favorites", device.name, #(items or {}))
+    pushMediaState(thing)
+  end)
+end
+
+--------------------------------------------------------------------------------
+-- Connection
+--------------------------------------------------------------------------------
+
+local function setConnectionStatus(text)
+  UpdateProperty("Connection Status", text)
+end
+
+local function startConnection()
+  if connection then
+    connection:stop()
+    connection = nil
+  end
+  local email = Properties["Email"]
+  local password = Properties["Password"]
+  if IsEmpty(email) or IsEmpty(password) then
+    setConnectionStatus("Enter account email and password")
+    return
+  end
+
+  setConnectionStatus("Connecting...")
+  api = Api:new({ email = email, password = password })
+  connection = Connection:new({
+    api = api,
+    onConnected = function(devices)
+      devices = devices or {}
+      devicesByThing = {}
+      local names = {}
+      for _, device in ipairs(devices) do
+        if device.thingName then
+          devicesByThing[device.thingName] = device
+          setupDeviceBindings(device)
+          loadCatalog(device)
+          names[#names + 1] = string.format("%s (%s)", device.name, device.product)
+        end
+      end
+      setConnectionStatus(string.format("Connected (%d device%s)", #devices, #devices == 1 and "" or "s"))
+      UpdateProperty("Devices", table.concat(names, ", "))
+      log:info("Hatch connected; %d device(s)", #devices)
+    end,
+    onShadow = function(thing, reported, _desired)
+      if not reported then
+        return
+      end
+      stateByThing[thing] = Device.parseState(reported)
+      pushMediaState(thing)
+      pushLightState(thing)
+    end,
+    onDisconnected = function()
+      setConnectionStatus("Disconnected (retrying)")
+    end,
+  })
+  connection:start()
+end
+
+--------------------------------------------------------------------------------
+-- Lifecycle
+--------------------------------------------------------------------------------
+
+function OnDriverInit()
+  --#ifdef DRIVERCENTRAL
+  C4:AllowExecute(false)
+  --#else
+  C4:AllowExecute(true)
+  --#endif
+  gInitialized = false
+  log:setLogName(C4:GetDeviceData(C4:GetDeviceID(), "name"))
+  log:setLogLevel(Properties["Log Level"])
+  log:setLogMode(Properties["Log Mode"])
+  -- Clear stale WebSocket binding addresses left over from previous driver runs.
+  -- WebSocket:delete() frees its 6100-6199 binding on a 3-second timer, but
+  -- OnDriverDestroyed runs KillAllTimers() which cancels that timer, so an
+  -- address can leak across an update/reload. Clear the address only (do NOT
+  -- NetDisconnect): NetDisconnect fires each stale binding's OFFLINE handler,
+  -- which drives its orphaned socket object into a reconnect and re-grabs a
+  -- binding. (Same fix as home_connect.)
+  for i = 6100, 6199 do
+    pcall(C4.SetBindingAddress, C4, i, "")
+  end
+  log:trace("OnDriverInit()")
+end
+
+function OnDriverLateInit()
+  log:trace("OnDriverLateInit()")
+  if not CheckMinimumVersion("Driver Status") then
+    return
+  end
+
+  -- Re-add persisted dynamic bindings after a Director restart.
+  bindings:restoreBindings()
+
+  for p, _ in pairs(Properties) do
+    local ok, err = pcall(OnPropertyChanged, p)
+    if not ok then
+      log:error("OnPropertyChanged('%s') failed: %s", p, tostring(err))
+    end
+  end
+
+  --#ifndef DRIVERCENTRAL
+  SetTimer("UpdateCheck", 30 * ONE_MINUTE, function()
+    if toboolean(Properties["Automatic Updates"]) then
+      UpdateDrivers()
+    end
+  end, true)
+  --#endif
+
+  gInitialized = true
+  UpdateProperty("Driver Status", "Ready")
+  startConnection()
+end
+
+function OnDriverDestroyed()
+  if connection then
+    connection:stop()
+    connection = nil
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Property handlers (OPC)
+--------------------------------------------------------------------------------
+
+function OPC.Driver_Status(_v)
+  if not gInitialized then
+    UpdateProperty("Driver Status", "Initializing", false)
+  end
+end
+
+function OPC.Driver_Version(_v)
+  C4:UpdateProperty("Driver Version", C4:GetDriverConfigInfo("version"))
+end
+
+function OPC.Log_Mode(v)
+  log:setLogMode(v)
+  CancelTimer("LogMode")
+  if not log:isEnabled() then
+    return
+  end
+  SetTimer("LogMode", 3 * ONE_HOUR, function()
+    UpdateProperty("Log Mode", "Off", true)
+  end)
+end
+
+function OPC.Log_Level(v)
+  log:setLogLevel(v)
+  local ultra = log:getLogLevel() >= 6 and log:isPrintEnabled()
+  DEBUGPRINT, DEBUG_TIMER, DEBUG_RFN, DEBUG_URL, DEBUG_WEBSOCKET = ultra, ultra, ultra, ultra, ultra
+end
+
+function OPC.Email(_v)
+  if gInitialized then
+    startConnection()
+  end
+end
+
+function OPC.Password(_v)
+  if gInitialized then
+    startConnection()
+  end
+end
+
+function OPC.Automatic_Updates(_v) end
+
+--#ifndef DRIVERCENTRAL
+function OPC.Update_Channel(_v) end
+--#endif
+
+--------------------------------------------------------------------------------
+-- Command handlers (EC)
+--------------------------------------------------------------------------------
+
+function EC.Reconnect(_params)
+  log:info("Reconnect requested")
+  startConnection()
+end
+
+function EC.Reset_Driver(params)
+  if params and params["Are You Sure?"] == "Yes" then
+    if connection then
+      connection:stop()
+      connection = nil
+    end
+    bindings:deleteAllBindings(NS_MEDIA)
+    bindings:deleteAllBindings(NS_LIGHT)
+    startConnection()
+  end
+end
+
+--#ifndef DRIVERCENTRAL
+function EC.Update_Drivers(_params)
+  UpdateDrivers()
+end
+--#endif
