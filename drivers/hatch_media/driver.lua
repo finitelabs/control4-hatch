@@ -462,6 +462,9 @@ end
 
 function OnDriverLateInit()
   log:trace("OnDriverLateInit()")
+  if not CheckMinimumVersion("Driver Status") then
+    return
+  end
   for p, _ in pairs(Properties) do
     pcall(OnPropertyChanged, p)
   end
@@ -473,6 +476,13 @@ end
 
 function OPC.Log_Mode(v)
   log:setLogMode(v)
+  CancelTimer("LogMode")
+  if not log:isEnabled() then
+    return
+  end
+  SetTimer("LogMode", 3 * ONE_HOUR, function()
+    UpdateProperty("Log Mode", "Off", true)
+  end)
 end
 
 function OPC.Log_Level(v)
@@ -480,3 +490,7 @@ function OPC.Log_Level(v)
 end
 
 function OPC.Driver_Status(_v) end
+
+function OPC.Driver_Version(_v)
+  C4:UpdateProperty("Driver Version", C4:GetDriverConfigInfo("version"))
+end

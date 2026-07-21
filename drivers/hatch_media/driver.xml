@@ -54,6 +54,12 @@
         <readonly>true</readonly>
       </property>
       <property>
+        <name>Driver Version</name>
+        <type>STRING</type>
+        <default/>
+        <readonly>true</readonly>
+      </property>
+      <property>
         <name>Log Level</name>
         <type>LIST</type>
         <default>3 - Info</default>

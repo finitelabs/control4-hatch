@@ -364,6 +364,7 @@ end
 -- Multi-instance update coordination (OSS auto-update)
 --------------------------------------------------------------------------------
 
+--#ifndef DRIVERCENTRAL
 -- Device ids of every Hatch coordinator instance (one per Hatch account),
 -- lowest first. Used to elect a single "leader" for update checks and to fan
 -- property changes out to peers.
@@ -390,6 +391,25 @@ local function syncPropertyToOtherInstances(propertyName, propertyValue)
     end
   end
 end
+
+-- Update the whole suite (coordinator + companions) from GitHub. The account
+-- driver owns the update for the suite; DRIVER_FILENAMES lists every c4z.
+-- @param forceUpdate? boolean Force the update even if the driver is up to date.
+function UpdateDrivers(forceUpdate)
+  log:trace("UpdateDrivers(%s)", forceUpdate)
+  githubUpdater
+    :updateAll(DRIVER_GITHUB_REPO, DRIVER_FILENAMES, Properties["Update Channel"] == "Prerelease", forceUpdate)
+    :next(function(updatedDrivers)
+      if not IsEmpty(updatedDrivers) then
+        log:info("Updated driver(s): %s", table.concat(updatedDrivers, ","))
+      else
+        log:info("No driver updates available")
+      end
+    end, function(err)
+      log:error("An error occurred updating drivers: %s", err)
+    end)
+end
+--#endif
 
 --------------------------------------------------------------------------------
 -- Lifecycle
@@ -441,6 +461,7 @@ function OnDriverLateInit()
     -- for updates, so multiple Hatch accounts don't each update the shared c4z.
     local isLeader = Select(getHatchDriverIds(), 1) == C4:GetDeviceID()
     if isLeader and toboolean(Properties["Automatic Updates"]) then
+      log:info("Checking for driver update (leader instance)")
       UpdateDrivers()
     end
   end, true)
@@ -544,6 +565,8 @@ end
 
 --#ifndef DRIVERCENTRAL
 function EC.Update_Drivers(_params)
-  UpdateDrivers()
+  log:trace("EC.Update_Drivers()")
+  log:print("Updating drivers")
+  UpdateDrivers(true)
 end
 --#endif
