@@ -1,6 +1,6 @@
 <img alt="Hatch" src="./images/header.png" width="500"/>
 
----
+______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
@@ -92,11 +92,11 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
 
 ## Installing the Drivers
 
-1.  Download the latest `control4-hatch.zip` from
-    [Github](https://github.com/finitelabs/control4-hatch/releases/latest).
-2.  Extract and install the desired `.c4z` driver files.
-3.  Use the "Search" tab in Composer Pro to find the driver by name and add it
-    to your project.
+1. Download the latest `control4-hatch.zip` from
+   [Github](https://github.com/finitelabs/control4-hatch/releases/latest).
+1. Extract and install the desired `.c4z` driver files.
+1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
+   your project.
 
 Add the Hatch account driver first and enter your account credentials, then add
 a Hatch Sound Machine and/or Hatch Night Light to the room with the device and
@@ -113,12 +113,16 @@ programming reference, and configuration guides.
 If you have any questions or issues integrating these drivers with Control4, you
 can file an issue on GitHub:
 
-<https://github.com/finitelabs/control4-hatch/issues/new>
+https://github.com/finitelabs/control4-hatch/issues/new
 
 <a href="https://www.buymeacoffee.com/derek.miller" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 <div style="page-break-after: always"></div>
 
 # <span style="color:#13294C">Changelog</span>
+
+<!-- prettier-ignore-start -->
+
+<!-- prettier-ignore-end -->
 
 ## Unreleased

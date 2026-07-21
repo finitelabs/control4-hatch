@@ -1,5 +1,3 @@
-[copyright]: # "Copyright 2026 Finite Labs, LLC. All rights reserved."
-
 <style>
 @media print {
    .noprint {
@@ -15,7 +13,7 @@
 
 <img alt="Hatch" src="./images/header.png" width="500"/>
 
----
+______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
@@ -42,10 +40,10 @@ endpoint, so no external amplifier or matrix is required.
 
 1. Add the Hatch account driver and enter your account credentials. Wait for its
    Connection Status to report the discovered devices.
-2. Add this driver to the room that has the Hatch device.
-3. In Connections, bind this driver's **Hatch Device** connection to the
+1. Add this driver to the room that has the Hatch device.
+1. In Connections, bind this driver's **Hatch Device** connection to the
    matching **Sound Machine** connection on the Hatch account driver.
-4. Bind this driver's **Audio End-Point** to the room's audio end point so the
+1. Bind this driver's **Audio End-Point** to the room's audio end point so the
    room can listen to it.
 
 # <span style="color:#13294C">Programming</span>
