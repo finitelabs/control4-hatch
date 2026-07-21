@@ -1,7 +1,9 @@
 # Control4 Driver Build System
 # Run `make help` for available targets.
 
-DISTRIBUTIONS := drivercentral oss
+# DriverCentral support lives in the source via the preprocessor (#ifdef
+# DRIVERCENTRAL); only OSS is built for now. Restore "drivercentral oss" for both.
+DISTRIBUTIONS := oss
 README_DRIVER := hatch
 README_BUILD  := oss
 

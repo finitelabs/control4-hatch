@@ -11,7 +11,9 @@
 -- both sides, so it passes through unscaled.
 
 --#ifdef DRIVERCENTRAL
-require("cloud-client-byte")
+DC_PID = 0 -- TODO: Assign DriverCentral product ID
+DC_X = nil
+DC_FILENAME = "hatch_light.c4z"
 --#endif
 
 require("lib.utils")
@@ -214,6 +216,7 @@ end
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
+  require("cloud-client-byte")
   C4:AllowExecute(false)
   --#else
   C4:AllowExecute(true)

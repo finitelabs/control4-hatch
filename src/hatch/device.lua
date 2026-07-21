@@ -58,16 +58,20 @@ function Device.parseState(reported)
   local colorId = tonumber(color.id)
   local flags = tonumber(clock.flags) or 0
 
-  -- Prefer the authoritative `playing` field ("none"/"remote"/"routine"). The
-  -- Restore keeps reporting its last soundId when idle, so deriving isPlaying
-  -- from the soundId sentinel alone leaves it stuck "playing" its last routine.
-  -- Fall back to the sentinel only when the device omits `playing`.
+  -- isPlaying means a SOUND is playing, and it takes BOTH signals to know that.
+  -- The device shares one `playing` field across sound and light: turning the
+  -- night light on sets playing="remote" with no sound (soundId == NO_SOUND_ID),
+  -- so `playing ~= "none"` alone shows a phantom "Sound 19998" session. And the
+  -- Restore keeps reporting its last soundId when idle, so the soundId sentinel
+  -- alone leaves it stuck "playing". Require a real sound id, plus a non-"none"
+  -- playing state when the device reports one.
   local playing = current.playing
+  local hasSound = soundId ~= nil and soundId ~= NO_SOUND_ID
   local isPlaying
   if playing ~= nil then
-    isPlaying = playing ~= "none"
+    isPlaying = playing ~= "none" and hasSound
   else
-    isPlaying = soundId ~= nil and soundId ~= NO_SOUND_ID
+    isPlaying = hasSound
   end
 
   return {

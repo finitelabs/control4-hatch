@@ -6,7 +6,9 @@
 -- and sends browse/play/volume actions to the coordinator as ENTITY_COMMAND.
 
 --#ifdef DRIVERCENTRAL
-require("cloud-client-byte")
+DC_PID = 0 -- TODO: Assign DriverCentral product ID
+DC_X = nil
+DC_FILENAME = "hatch_media.c4z"
 --#endif
 
 require("lib.utils")
@@ -34,6 +36,7 @@ local favorites = {}
 local state = {}
 local mutedVolume = nil
 local wasPlaying = false
+local reconciled = false
 Navigators = Navigators or {}
 Navigator = Navigator or {}
 
@@ -158,17 +161,42 @@ local function applyState(tParams)
 
   state = DeserializeSafe(Select(tParams, "state")) or {}
 
-  -- Device-initiated playback (Hatch app / touch ring) has no Control4 session
-  -- until this media service is selected as its room's source. When playback
-  -- transitions on, select ourselves into our room -- but only if the room's
-  -- audio is off (CURRENT_SELECTED_AUDIO_DEVICE == 0), so we never steal a room
-  -- already listening to something else, and it's a no-op when we're already the
-  -- source (Control4-initiated plays, which pre-select, leave it set to us).
+  -- Keep the Control4 room session in sync with device-initiated playback. The
+  -- Hatch has no C4 session until this media service is selected as its room's
+  -- source, so: select ourselves when playback starts, release the room when it
+  -- stops. `selected` is the room's CURRENT_SELECTED_AUDIO_DEVICE; `mine` is our
+  -- media-service proxy device.
   local nowPlaying = state.isPlaying == true
-  if nowPlaying and not wasPlaying then
-    local room = tonumber(C4:RoomGetId())
-    if room and tostring(C4:GetDeviceVariable(room, 1001)) == "0" then
+  local room = tonumber(C4:RoomGetId())
+  local selected = room and tostring(C4:GetDeviceVariable(room, 1001))
+  local mine = tostring(C4:GetProxyDevices())
+  if not reconciled then
+    -- First state after a (re)load: wasPlaying is back to false, so the
+    -- transition logic below can't reconcile a selection made before the reload
+    -- (e.g. a driver update mid-session). Sync both directions once -- surface a
+    -- live session that lost its card, or release a strand left selected with
+    -- nothing playing.
+    reconciled = true
+    if nowPlaying then
+      if selected == "0" then
+        selectAudioIn({ room })
+      end
+    elseif selected == mine then
+      C4:SendToDevice(room, "ROOM_OFF", {})
+    end
+  elseif nowPlaying and not wasPlaying then
+    -- Device-initiated play: select our room only if its audio is off, so we
+    -- never steal a room already listening to something else (a no-op when a
+    -- Control4-initiated play already pre-selected us).
+    if selected == "0" then
       selectAudioIn({ room })
+    end
+  elseif wasPlaying and not nowPlaying then
+    -- Playback stopped, often externally (Hatch app, touch ring, or the device
+    -- dropping offline). If we're still the selected source, end the session so
+    -- C4 doesn't leave a ghost "Off" now-playing card up.
+    if selected == mine then
+      C4:SendToDevice(room, "ROOM_OFF", {})
     end
   end
   wasPlaying = nowPlaying
@@ -420,6 +448,7 @@ end
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
+  require("cloud-client-byte")
   C4:AllowExecute(false)
   --#else
   C4:AllowExecute(true)

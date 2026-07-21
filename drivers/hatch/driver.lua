@@ -9,7 +9,16 @@
 -- shadow update. Shadow state is pushed back to companions as UPDATE_STATE.
 
 --#ifdef DRIVERCENTRAL
-require("cloud-client-byte")
+DC_PID = 0 -- TODO: Assign DriverCentral product ID
+DC_X = nil
+DC_FILENAME = "hatch.c4z"
+--#else
+DRIVER_GITHUB_REPO = "finitelabs/control4-hatch"
+DRIVER_FILENAMES = {
+  "hatch.c4z",
+  "hatch_media.c4z",
+  "hatch_light.c4z",
+}
 --#endif
 
 require("lib.utils")
@@ -306,8 +315,20 @@ local function startConnection()
 
   setConnectionStatus("Connecting...")
   api = Api:new({ email = email, password = password })
+
+  -- MQTT client id must be unique per controller. Two controllers (or a lingering
+  -- stale connection) sharing an id make AWS IoT kick one whenever the other
+  -- connects, which flaps the link and drops commands. The controller MAC keeps it
+  -- unique across controllers; the device id disambiguates instances within one.
+  local clientId = string.format(
+    "control4-hatch-%s-%s",
+    (tostring(C4:GetUniqueMAC() or ""):gsub("[^%w]", "")),
+    tostring(C4:GetDeviceID())
+  )
+
   connection = Connection:new({
     api = api,
+    clientId = clientId,
     onConnected = function(devices)
       devices = devices or {}
       devicesByThing = {}
@@ -340,11 +361,43 @@ local function startConnection()
 end
 
 --------------------------------------------------------------------------------
+-- Multi-instance update coordination (OSS auto-update)
+--------------------------------------------------------------------------------
+
+-- Device ids of every Hatch coordinator instance (one per Hatch account),
+-- lowest first. Used to elect a single "leader" for update checks and to fan
+-- property changes out to peers.
+local function getHatchDriverIds()
+  local drivers = C4:GetDevicesByC4iName(C4:GetDriverFileName()) or {}
+  local ids = {}
+  for id, _ in pairs(drivers) do
+    ids[#ids + 1] = tointeger(id)
+  end
+  table.sort(ids)
+  return ids
+end
+
+-- Push a property value to the other coordinator instances so the suite's update
+-- settings (Update Channel / Automatic Updates) stay in lockstep across multiple
+-- Hatch accounts. SetDeviceProperties only writes when the value differs, so this
+-- can't loop.
+local function syncPropertyToOtherInstances(propertyName, propertyValue)
+  local myId = C4:GetDeviceID()
+  for _, deviceId in ipairs(getHatchDriverIds()) do
+    if deviceId ~= myId then
+      log:info("Syncing '%s' = '%s' to device %d", propertyName, propertyValue, deviceId)
+      SetDeviceProperties(deviceId, { [propertyName] = propertyValue }, true)
+    end
+  end
+end
+
+--------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
+  require("cloud-client-byte")
   C4:AllowExecute(false)
   --#else
   C4:AllowExecute(true)
@@ -384,7 +437,10 @@ function OnDriverLateInit()
 
   --#ifndef DRIVERCENTRAL
   SetTimer("UpdateCheck", 30 * ONE_MINUTE, function()
-    if toboolean(Properties["Automatic Updates"]) then
+    -- Only the leader (lowest device id among the coordinator instances) checks
+    -- for updates, so multiple Hatch accounts don't each update the shared c4z.
+    local isLeader = Select(getHatchDriverIds(), 1) == C4:GetDeviceID()
+    if isLeader and toboolean(Properties["Automatic Updates"]) then
       UpdateDrivers()
     end
   end, true)
@@ -445,10 +501,24 @@ function OPC.Password(_v)
   end
 end
 
-function OPC.Automatic_Updates(_v) end
+function OPC.Automatic_Updates(propertyValue)
+  log:trace("OPC.Automatic_Updates('%s')", propertyValue)
+  --#ifndef DRIVERCENTRAL
+  if not gInitialized then
+    return
+  end
+  syncPropertyToOtherInstances("Automatic Updates", propertyValue)
+  --#endif
+end
 
 --#ifndef DRIVERCENTRAL
-function OPC.Update_Channel(_v) end
+function OPC.Update_Channel(propertyValue)
+  log:trace("OPC.Update_Channel('%s')", propertyValue)
+  if not gInitialized then
+    return
+  end
+  syncPropertyToOtherInstances("Update Channel", propertyValue)
+end
 --#endif
 
 --------------------------------------------------------------------------------
