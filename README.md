@@ -228,3 +228,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 -->
 
 ## Unreleased
+
+### Removed
+
+- Removed the orphaned `package-lock.json` left over from the retired
+  electron-pdf docs pipeline; node/npm is not part of the build
