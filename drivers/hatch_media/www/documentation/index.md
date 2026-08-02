@@ -63,8 +63,6 @@ endpoint, so no external amplifier or matrix is required.
 
 </div>
 
-<div style="page-break-after: always"></div>
-
 # <span style="color:#13294C">System Requirements</span>
 
 - Control4 OS 3.3+
@@ -88,8 +86,6 @@ The sound machine is supported on Hatch devices with an audio player, which
 covers Rest+ (Rest+ 2nd gen / riot) and Restore. The account driver detects each
 device and exposes a Sound Machine connection for it. The available sounds and
 favorites come from the device's own catalog.
-
-<div style="page-break-after: always"></div>
 
 # <span style="color:#13294C">Installer Setup</span>
 
@@ -159,8 +155,6 @@ play the Hatch device.
 Bind this connection to the Sound Machine connection exposed by the main Hatch
 account driver.
 
-<div style="page-break-after: always"></div>
-
 # <span style="color:#13294C">Programming</span>
 
 ## Commands
@@ -178,8 +172,6 @@ The driver adds these commands for use in Composer programming:
 
 Volume, mute, and transport are also available through the standard room audio
 and media session controls, so they do not need dedicated programming commands.
-
-<div style="page-break-after: always"></div>
 
 <!-- #ifdef DRIVERCENTRAL -->
 
@@ -220,7 +212,5 @@ https://github.com/finitelabs/control4-hatch/issues/new
 <a href="https://www.buymeacoffee.com/derek.miller" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 <!-- #endif -->
-
-<div style="page-break-after: always"></div>
 
 <!-- #embed-changelog -->

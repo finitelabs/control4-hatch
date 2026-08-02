@@ -61,8 +61,6 @@ in a project.
 
 </div>
 
-<div style="page-break-after: always"></div>
-
 # <span style="color:#13294C">System Requirements</span>
 
 - Control4 OS 3.3+
@@ -86,8 +84,6 @@ in a project.
 The night light is RGB. It is supported on Hatch devices that include a light,
 which covers Rest+ (Rest+ 2nd gen / riot) and Restore. The account driver
 detects each device and exposes a Night Light connection for it.
-
-<div style="page-break-after: always"></div>
 
 # <span style="color:#13294C">Installer Setup</span>
 
@@ -150,8 +146,6 @@ and provides the light functionality to Control4.
 Bind this connection to the Night Light connection exposed by the main Hatch
 account driver.
 
-<div style="page-break-after: always"></div>
-
 <!-- #ifdef DRIVERCENTRAL -->
 
 # <span style="color:#13294C">Developer Information</span>
@@ -191,7 +185,5 @@ https://github.com/finitelabs/control4-hatch/issues/new
 <a href="https://www.buymeacoffee.com/derek.miller" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 <!-- #endif -->
-
-<div style="page-break-after: always"></div>
 
 <!-- #embed-changelog -->

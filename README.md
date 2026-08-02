@@ -45,8 +45,6 @@ or rooms are involved.
 
 </div>
 
-<div style="page-break-after: always"></div>
-
 # <span style="color:#13294C">System Requirements</span>
 
 - Control4 OS 3.3+
@@ -94,8 +92,6 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
 - Color handled with Control4's built-in color model, so it matches the rest of
   the lighting in a project
 - Advanced Lighting Scenes support
-
-<div style="page-break-after: always"></div>
 
 # <span style="color:#13294C">Installer Setup</span>
 
@@ -194,8 +190,6 @@ Clears the driver's stored state and reconnects.
 
 - **Are You Sure?** \[ **_No_** | Yes \] - Confirmation to reset the driver.
 
-<div style="page-break-after: always"></div>
-
 # <span style="color:#13294C">Support</span>
 
 If you have any questions or issues integrating these drivers with Control4, you
@@ -204,8 +198,6 @@ can file an issue on GitHub:
 https://github.com/finitelabs/control4-hatch/issues/new
 
 <a href="https://www.buymeacoffee.com/derek.miller" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
-
-<div style="page-break-after: always"></div>
 
 # <span style="color:#13294C">Changelog</span>
 
