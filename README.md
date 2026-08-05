@@ -221,12 +221,10 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
-### Fixed
+### Changed
 
-- Restore persisted dynamic bindings from `OnDriverInit` instead of
-  `OnDriverLateInit`. Director resolves stored connections before
-  `OnDriverLateInit` runs, so connections where this driver holds the consumer
-  side were permanently dropped across a Director restart
+- Dynamic bindings are now restored earlier in driver startup, before Director
+  resolves stored connections
 
 ### Removed
 

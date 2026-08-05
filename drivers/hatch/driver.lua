@@ -438,9 +438,7 @@ function OnDriverInit()
   end
   log:trace("OnDriverInit()")
 
-  -- Re-add persisted dynamic bindings. This must happen here, not in
-  -- OnDriverLateInit: Director resolves stored connections before LateInit
-  -- (see src/lib/bindings.lua).
+  -- Restore persisted state
   bindings:restoreBindings()
 end
 
