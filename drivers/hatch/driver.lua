@@ -437,6 +437,11 @@ function OnDriverInit()
     pcall(C4.SetBindingAddress, C4, i, "")
   end
   log:trace("OnDriverInit()")
+
+  -- Re-add persisted dynamic bindings. This must happen here, not in
+  -- OnDriverLateInit: Director resolves stored connections before LateInit
+  -- (see src/lib/bindings.lua).
+  bindings:restoreBindings()
 end
 
 function OnDriverLateInit()
@@ -444,9 +449,6 @@ function OnDriverLateInit()
   if not CheckMinimumVersion("Driver Status") then
     return
   end
-
-  -- Re-add persisted dynamic bindings after a Director restart.
-  bindings:restoreBindings()
 
   for p, _ in pairs(Properties) do
     local ok, err = pcall(OnPropertyChanged, p)

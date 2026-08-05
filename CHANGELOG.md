@@ -20,6 +20,13 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
+### Fixed
+
+- Restore persisted dynamic bindings from `OnDriverInit` instead of
+  `OnDriverLateInit`. Director resolves stored connections before
+  `OnDriverLateInit` runs, so connections where this driver holds the consumer
+  side were permanently dropped across a Director restart
+
 ### Removed
 
 - Removed the orphaned `package-lock.json` left over from the retired
