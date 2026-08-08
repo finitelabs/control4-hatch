@@ -1,3 +1,5 @@
+<!-- Copyright 2026 Finite Labs, LLC. All rights reserved. -->
+
 <style>
 @media print {
    .noprint {
@@ -62,6 +64,7 @@ the volume and the dimmer stay in step without fighting each other.
     - [Cloud Settings](#cloud-settings)
     <!-- #endif -->
     - [Driver Settings](#driver-settings)
+    - [Volume Settings](#volume-settings)
   - [Connections](#connections)
   <!-- #ifdef DRIVERCENTRAL -->
 - [Developer Information](#developer-information)
@@ -170,6 +173,26 @@ Sets the logging level. Default is `3 - Info`.
 #### Log Mode \[ **_Off_** | Print | Log | Print and Log \]
 
 Sets the logging mode. Default is `Off`.
+
+### Volume Settings
+
+#### Turn On Plays \[ **_(Select)_** | _the account's favorites and sounds_ \]
+
+Selects what turning the dimmer on starts. Entries are prefixed `Favorite: ` or
+`Sound: `, because a sound and a favorite can share a name.
+
+A favorite plays at its own volume and colour, so the dimmer reports the level
+the favorite applies. A sound carries no volume of its own and starts at the
+light's `Default On` preset level instead.
+
+The list is populated from the Hatch account once the account driver has
+connected, and refreshes on its own when sounds or favorites change in the Hatch
+app. Favorites that share a name carry their touch ring number, matching the
+Hatch app.
+
+> **Note:** Left at `(Select)`, turning the dimmer on starts the first favorite
+> on the account, since a dimmer whose On button does nothing is never the more
+> useful default.
 
 ## Connections
 

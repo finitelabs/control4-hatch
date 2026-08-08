@@ -1,3 +1,5 @@
+<!-- Copyright 2026 Finite Labs, LLC. All rights reserved. -->
+
 <img alt="Hatch" src="./images/header.png" width="500"/>
 
 ______________________________________________________________________
@@ -31,6 +33,7 @@ or rooms are involved.
   - [Hatch](#hatch)
   - [Hatch Sound Machine](#hatch-sound-machine)
   - [Hatch Night Light](#hatch-night-light)
+  - [Hatch Volume](#hatch-volume)
 
 - [Installer Setup](#installer-setup)
 
@@ -93,6 +96,25 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
   the lighting in a project
 - Advanced Lighting Scenes support
 
+## Hatch Volume
+
+Presents one device's sound machine volume as a standard Control4 light
+(light_v2) dimmer, where brightness is the volume percentage and the load being
+on means the sound machine is playing.
+
+**Key features:**
+
+- Volume as a dimmer, for integrations that only understand lights. Apple Home
+  has no equivalent of a media service, so this is the only way to put Hatch
+  volume in front of it
+- Turning it on starts a sound or favorite chosen in a property, so the button
+  always plays something
+- Tracks changes made in the Hatch app in both directions, with no programming
+
+> **Note:** This is redundant in native Control4, where the Hatch Sound Machine
+> already carries volume in the room's audio session. Add it only for a
+> lights-only integration.
+
 # <span style="color:#13294C">Installer Setup</span>
 
 ## Installing the Drivers
@@ -110,16 +132,16 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
 ## Driver Setup
 
 Add the Hatch account driver first and enter your account credentials, then add
-a Hatch Sound Machine and/or Hatch Night Light to the room with the device and
-bind it to the matching connection on the account driver.
+the companion drivers for the device to the room it is in and bind each to the
+matching connection on the account driver.
 
 1. Add the **Hatch** account driver to your project.
 1. Enter your Hatch account **Email** and **Password**. The driver connects to
    the Hatch cloud and populates **Connection Status** and the discovered
    **Devices**.
-1. Add a **Hatch Sound Machine** and/or **Hatch Night Light** to the room with
-   the device, and bind its `Hatch Device` connection to the matching device
-   connection exposed by the account driver.
+1. Add a **Hatch Sound Machine**, **Hatch Night Light** and/or **Hatch Volume**
+   to the room with the device, and bind each one's `Hatch Device` connection to
+   the matching device connection exposed by the account driver.
 
 Each companion driver includes its own documentation accessible from within
 Composer Pro. Refer to the individual driver documentation for its property,
@@ -155,7 +177,8 @@ Displays the current status of the connection to the Hatch cloud.
 ##### Devices (read-only)
 
 Lists the Hatch devices discovered on the account. Bind the companion drivers
-(Hatch Sound Machine, Hatch Night Light) to these device connections.
+(Hatch Sound Machine, Hatch Night Light, Hatch Volume) to these device
+connections.
 
 #### Driver Settings
 
@@ -254,7 +277,10 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Fixed the sound machine reporting its volume continuously rather than only
   when it changed, which made Programming watching the volume run constantly.
 - Fixed the companion drivers showing their last known state as though it were
-  live after the account driver lost its cloud connection.
+  live after the account driver lost its cloud connection. The sound machine's
+  now-playing card and Programming conditionals also went stale, and the night
+  light and volume dimmer reported themselves reachable before the account
+  driver had found the device.
 
 ## v20260806 - 2026-08-06
 

@@ -45,6 +45,9 @@ function Connection:new(opts)
   instance.clientId = opts.clientId or ("control4-hatch-" .. tostring(math.random(100000, 999999)))
   instance.devices = {}
   instance.connected = false -- true once MQTT CONNACK rc=0 seen
+  -- Whether the companions have already been told we are down, so a retry loop
+  -- announces once rather than on every failed attempt.
+  instance.announcedDown = false
   instance.stopped = true
   instance.buffer = ""
   instance.packetId = 0
@@ -132,11 +135,21 @@ function Connection:connectOnce()
   end, function(err)
     local msg = type(err) == "table" and (err.error or JSON:encode(err)) or tostring(err)
     log:warn("Hatch: auth chain failed: %s", msg)
+    -- openSocket is never reached on this path, so no socket close will ever
+    -- fire. Without this the companions keep reporting the last live state for
+    -- as long as auth keeps failing.
+    self:announceDown()
     self:scheduleReconnect()
   end)
 end
 
 function Connection:openSocket(creds)
+  -- The socket about to be replaced is muted by the identity guard below, so its
+  -- close will not clear this. Left true, the connect-timeout watchdog reads a
+  -- stale value and never fires, so a stalled replacement parks the driver with
+  -- isConnected() still reporting true and every companion holding live state.
+  self.connected = false
+
   -- Release the previous socket's binding fully, THEN open the new one from the
   -- teardown callback. Opening before the old binding is freed strands it in the
   -- 6100-6199 pool (see teardownSocket).
@@ -176,10 +189,20 @@ function Connection:openSocket(creds)
       ws:SetProcessMessageFunction(function(_ws, data)
         self:onWsMessage(data)
       end)
+      -- Both callbacks capture the socket they belong to. teardownSocket() nils
+      -- self.ws before deleting, and the module defers the delete, so a replaced
+      -- socket can still fire these. Without the guard its close would fan a
+      -- disconnect out to every companion while the new socket is coming up.
       ws:SetClosedByRemoteFunction(function()
+        if self.ws ~= ws then
+          return
+        end
         self:onWsClosed("closed by remote")
       end)
       ws:SetOfflineFunction(function()
+        if self.ws ~= ws then
+          return
+        end
         self:onWsClosed("offline")
       end)
       ws:Start()
@@ -238,14 +261,27 @@ function Connection:onWsMessage(data)
   end
 end
 
+--- Tell the owner we are down, at most once until the next successful connect.
+function Connection:announceDown()
+  if self.announcedDown or self.stopped then
+    return
+  end
+  self.announcedDown = true
+  if self.onDisconnected then
+    pcall(self.onDisconnected)
+  end
+end
+
 function Connection:onWsClosed(reason)
+  -- A deliberate stop is not a disconnect worth reporting.
+  if self.stopped then
+    return
+  end
   log:debug("Hatch: WebSocket closed (%s)", tostring(reason))
   self.connected = false
   CancelTimer(self.pingTimer)
   self.pingTimer = nil
-  if self.onDisconnected then
-    pcall(self.onDisconnected)
-  end
+  self:announceDown()
   self:scheduleReconnect()
 end
 
@@ -262,6 +298,7 @@ function Connection:handlePacket(pkt)
     if pkt.returnCode == 0 then
       log:info("Hatch: MQTT connected (CONNACK rc=0)")
       self.connected = true
+      self.announcedDown = false
       self.reconnectDelay = RECONNECT_MIN_MS
       CancelTimer(self.connectTimer)
       self.connectTimer = nil

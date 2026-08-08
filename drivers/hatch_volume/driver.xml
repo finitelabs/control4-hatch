@@ -42,17 +42,6 @@
       </property>
       <!-- #endif -->
       <property>
-        <name>Volume Settings</name>
-        <type>LABEL</type>
-        <default>Volume Settings</default>
-      </property>
-      <property>
-        <name>Turn On Plays</name>
-        <type>DYNAMIC_LIST</type>
-        <default>(Select)</default>
-        <description>Sound or favorite to start when this dimmer is turned on. Populated from the Hatch account once connected.</description>
-      </property>
-      <property>
         <name>Driver Settings</name>
         <type>LABEL</type>
         <default>Driver Settings</default>
@@ -93,6 +82,17 @@
           <item>Log</item>
           <item>Print and Log</item>
         </items>
+      </property>
+      <property>
+        <name>Volume Settings</name>
+        <type>LABEL</type>
+        <default>Volume Settings</default>
+      </property>
+      <property>
+        <name>Turn On Plays</name>
+        <type>DYNAMIC_LIST</type>
+        <default>(Select)</default>
+        <description>Sound or favorite to start when this dimmer is turned on. Populated from the Hatch account once connected.</description>
       </property>
     </properties>
     <actions/>

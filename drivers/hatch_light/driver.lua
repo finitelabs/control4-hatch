@@ -38,7 +38,9 @@ gInitialized = false
 -- Last state the coordinator pushed, kept so TOGGLE and ON can reason about
 -- whether the light is currently on and what color to restore.
 local lightState = {
-  online = true,
+  -- Pessimistic until the coordinator hands the device over: reporting a load
+  -- as reachable before then makes Navigator accept commands that go nowhere.
+  online = false,
   on = false,
   red = 255,
   green = 255,
@@ -254,7 +256,10 @@ function OnDriverLateInit()
     pcall(OnPropertyChanged, p)
   end
   gInitialized = true
-  UpdateProperty("Driver Status", "Ready")
+  UpdateProperty("Driver Status", "Waiting for coordinator")
+  -- Declare offline before asking for state, so nothing reads the proxy as
+  -- reachable in the window before the coordinator answers.
+  notifyOnline(false)
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 

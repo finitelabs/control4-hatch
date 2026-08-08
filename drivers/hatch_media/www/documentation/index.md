@@ -1,3 +1,5 @@
+<!-- Copyright 2026 Finite Labs, LLC. All rights reserved. -->
+
 <style>
 @media print {
    .noprint {
@@ -53,6 +55,8 @@ endpoint, so no external amplifier or matrix is required.
   - [Connections](#connections)
 - [Programming](#programming)
   - [Commands](#commands)
+  - [Events](#events)
+  - [Conditionals](#conditionals)
   <!-- #ifdef DRIVERCENTRAL -->
 - [Developer Information](#developer-information)
 
