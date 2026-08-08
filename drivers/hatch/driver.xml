@@ -1,9 +1,9 @@
 <devicedata>
   <name>Hatch</name>
   <version/>
-  <manufacturer>Hatch</manufacturer>
+  <manufacturer>Finite Labs</manufacturer>
   <model>Hatch Account</model>
-  <creator>Finite Labs</creator>
+  <creator>Derek Miller</creator>
   <small image_source="c4z">icons/device_sm.png</small>
   <large image_source="c4z">icons/device_lg.png</large>
   <control>lua_gen</control>

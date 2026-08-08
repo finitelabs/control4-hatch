@@ -138,17 +138,35 @@ documentation for setting it up.
 
 1. Download the latest `control4-hatch.zip` from
    [DriverCentral](https://drivercentral.io/platforms/control4-drivers/).
+
 1. Extract and install the desired `.c4z` driver files.
+
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
+
+   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
+
+1. Select the newly added driver in the "System Design" tab. You will notice
+   that the `Cloud Status` reflects the license state. If you have purchased a
+   license it will show `License Activated`, otherwise `Trial Running` and
+   remaining trial duration.
+
+1. You can refresh license status by selecting the "DriverCentral Cloud" driver
+   in the "System Design" tab and perform the "Check Drivers" action.
+
+   <img alt="Check Drivers" src="./images/check-drivers.png" width="300"/>
 
 <!-- #else -->
 
 1. Download the latest `control4-hatch.zip` from
    [Github](https://github.com/finitelabs/control4-hatch/releases/latest).
+
 1. Extract and install the desired `.c4z` driver files.
+
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
+
+   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
 
 <!-- #endif -->
 

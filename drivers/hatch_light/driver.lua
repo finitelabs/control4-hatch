@@ -65,6 +65,12 @@ local function notifyBrightness(pct)
   }, "NOTIFY")
 end
 
+--- Tell the proxy the load is reachable. Without it Navigator greys the light
+--- out however correct its brightness and colour reports are.
+local function notifyOnline(online)
+  SendToProxy(PROXY_BINDING, "ONLINE_CHANGED", { STATE = online and true or false }, "NOTIFY")
+end
+
 local function notifyColor(red, green, blue)
   local x, y = C4:ColorRGBtoXY(tonumber(red) or 255, tonumber(green) or 255, tonumber(blue) or 255)
   if not (x and y) then
@@ -93,6 +99,7 @@ local function applyState(tParams)
   lightState.blue = tonumber(state.blue) or lightState.blue
   lightState.brightnessPct = tonumber(state.brightnessPct) or lightState.brightnessPct
 
+  notifyOnline(lightState.online)
   -- When off, the proxy expects brightness 0; the last color is retained so the
   -- color chip in Navigator stays meaningful.
   notifyBrightness(lightState.on and lightState.brightnessPct or 0)
@@ -146,6 +153,13 @@ local function setBrightness(idBinding, level)
   entityCommand({ command = "setBrightness", brightness = pct })
 end
 
+function RFP.GET_CONNECTED_STATE(idBinding)
+  if idBinding ~= PROXY_BINDING then
+    return
+  end
+  notifyOnline(lightState.online)
+end
+
 function RFP.SET_LEVEL(idBinding, _strCommand, tParams)
   setBrightness(idBinding, Select(tParams, "LEVEL"))
 end
@@ -197,6 +211,8 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     if strCommand == "UPDATE_STATE" then
       applyState(tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
+      lightState.online = false
+      notifyOnline(false)
       UpdateProperty("Driver Status", "Coordinator offline")
     end
     return
@@ -240,6 +256,15 @@ function OnDriverLateInit()
   gInitialized = true
   UpdateProperty("Driver Status", "Ready")
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
+end
+
+--- Announce reachability on bind and retract it on unbind, per light_v2.
+OBC = OBC or {}
+OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)
+  notifyOnline(bIsBound and lightState.online)
+  if bIsBound then
+    SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
+  end
 end
 
 function OPC.Log_Mode(v)
