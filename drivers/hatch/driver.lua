@@ -563,7 +563,11 @@ local function startConnection()
   local email = Properties["Email"]
   local password = Properties["Password"]
   if IsEmpty(email) or IsEmpty(password) then
+    -- The stop above no longer fans out a disconnect (the socket guard mutes a
+    -- replaced socket), and no new connection is coming, so say so explicitly or
+    -- the companions keep reporting the last live state forever.
     setConnectionStatus("Enter account email and password")
+    pushDisconnect()
     return
   end
 

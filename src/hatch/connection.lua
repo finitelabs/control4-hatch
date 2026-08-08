@@ -45,6 +45,9 @@ function Connection:new(opts)
   instance.clientId = opts.clientId or ("control4-hatch-" .. tostring(math.random(100000, 999999)))
   instance.devices = {}
   instance.connected = false -- true once MQTT CONNACK rc=0 seen
+  -- Whether the companions have already been told we are down, so a retry loop
+  -- announces once rather than on every failed attempt.
+  instance.announcedDown = false
   instance.stopped = true
   instance.buffer = ""
   instance.packetId = 0
@@ -132,6 +135,10 @@ function Connection:connectOnce()
   end, function(err)
     local msg = type(err) == "table" and (err.error or JSON:encode(err)) or tostring(err)
     log:warn("Hatch: auth chain failed: %s", msg)
+    -- openSocket is never reached on this path, so no socket close will ever
+    -- fire. Without this the companions keep reporting the last live state for
+    -- as long as auth keeps failing.
+    self:announceDown()
     self:scheduleReconnect()
   end)
 end
@@ -248,6 +255,17 @@ function Connection:onWsMessage(data)
   end
 end
 
+--- Tell the owner we are down, at most once until the next successful connect.
+function Connection:announceDown()
+  if self.announcedDown or self.stopped then
+    return
+  end
+  self.announcedDown = true
+  if self.onDisconnected then
+    pcall(self.onDisconnected)
+  end
+end
+
 function Connection:onWsClosed(reason)
   -- A deliberate stop is not a disconnect worth reporting.
   if self.stopped then
@@ -257,9 +275,7 @@ function Connection:onWsClosed(reason)
   self.connected = false
   CancelTimer(self.pingTimer)
   self.pingTimer = nil
-  if self.onDisconnected then
-    pcall(self.onDisconnected)
-  end
+  self:announceDown()
   self:scheduleReconnect()
 end
 
@@ -276,6 +292,7 @@ function Connection:handlePacket(pkt)
     if pkt.returnCode == 0 then
       log:info("Hatch: MQTT connected (CONNACK rc=0)")
       self.connected = true
+      self.announcedDown = false
       self.reconnectDelay = RECONNECT_MIN_MS
       CancelTimer(self.connectTimer)
       self.connectTimer = nil
