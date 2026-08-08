@@ -49,7 +49,10 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Fixed the sound machine reporting its volume continuously rather than only
   when it changed, which made Programming watching the volume run constantly.
 - Fixed the companion drivers showing their last known state as though it were
-  live after the account driver lost its cloud connection.
+  live after the account driver lost its cloud connection. The sound machine's
+  now-playing card and Programming conditionals also went stale, and the night
+  light and volume dimmer reported themselves reachable before the account
+  driver had found the device.
 
 ## v20260806 - 2026-08-06
 

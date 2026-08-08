@@ -50,7 +50,9 @@ gInitialized = false
 --- Last state pushed by the coordinator, so TOGGLE and ON can reason about
 --- whether anything is playing and what level to restore.
 local volumeState = {
-  online = true,
+  -- Pessimistic until the coordinator hands the device over: reporting a load
+  -- as reachable before then makes Navigator accept commands that go nowhere.
+  online = false,
   on = false,
   brightnessPct = 0,
 }
@@ -370,7 +372,10 @@ function OnDriverLateInit()
     pcall(OnPropertyChanged, p)
   end
   gInitialized = true
-  UpdateProperty("Driver Status", "Ready")
+  UpdateProperty("Driver Status", "Waiting for coordinator")
+  -- Declare offline before asking for state, so nothing reads the proxy as
+  -- reachable in the window before the coordinator answers.
+  notifyOnline(false)
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 

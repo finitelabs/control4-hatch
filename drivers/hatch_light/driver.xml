@@ -126,6 +126,7 @@
     <color_rate_behavior>1</color_rate_behavior>
     <color_rate_min>0</color_rate_min>
     <color_rate_max>65535</color_rate_max>
+    <color_trace_tolerance>2</color_trace_tolerance>
   </capabilities>
   <proxies>
     <proxy proxybindingid="5001" primary="True" name="Hatch Night Light">light_v2</proxy>

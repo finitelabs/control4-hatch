@@ -547,6 +547,15 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     if strCommand == "UPDATE_STATE" then
       applyState(tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
+      -- Mark the cached state unreachable rather than only relabelling the
+      -- property. Left alone it keeps feeding the now-playing card and the
+      -- conditionals, so Navigator shows the last sound and programming still
+      -- answers "yes, playing" while the account has no cloud connection.
+      state.online = false
+      state.isPlaying = false
+      wasPlaying = false
+      updateNowPlaying("Offline")
+      lastVolumeNotified = nil
       UpdateProperty("Driver Status", "Coordinator offline")
     end
     return

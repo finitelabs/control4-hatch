@@ -176,10 +176,20 @@ function Connection:openSocket(creds)
       ws:SetProcessMessageFunction(function(_ws, data)
         self:onWsMessage(data)
       end)
+      -- Both callbacks capture the socket they belong to. teardownSocket() nils
+      -- self.ws before deleting, and the module defers the delete, so a replaced
+      -- socket can still fire these. Without the guard its close would fan a
+      -- disconnect out to every companion while the new socket is coming up.
       ws:SetClosedByRemoteFunction(function()
+        if self.ws ~= ws then
+          return
+        end
         self:onWsClosed("closed by remote")
       end)
       ws:SetOfflineFunction(function()
+        if self.ws ~= ws then
+          return
+        end
         self:onWsClosed("offline")
       end)
       ws:Start()
@@ -239,6 +249,10 @@ function Connection:onWsMessage(data)
 end
 
 function Connection:onWsClosed(reason)
+  -- A deliberate stop is not a disconnect worth reporting.
+  if self.stopped then
+    return
+  end
   log:debug("Hatch: WebSocket closed (%s)", tostring(reason))
   self.connected = false
   CancelTimer(self.pingTimer)
