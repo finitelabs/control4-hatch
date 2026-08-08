@@ -144,6 +144,12 @@ function Connection:connectOnce()
 end
 
 function Connection:openSocket(creds)
+  -- The socket about to be replaced is muted by the identity guard below, so its
+  -- close will not clear this. Left true, the connect-timeout watchdog reads a
+  -- stale value and never fires, so a stalled replacement parks the driver with
+  -- isConnected() still reporting true and every companion holding live state.
+  self.connected = false
+
   -- Release the previous socket's binding fully, THEN open the new one from the
   -- teardown callback. Opening before the old binding is freed strands it in the
   -- 6100-6199 pool (see teardownSocket).
