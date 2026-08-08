@@ -99,9 +99,13 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
 
 1. Download the latest `control4-hatch.zip` from
    [Github](https://github.com/finitelabs/control4-hatch/releases/latest).
+
 1. Extract and install the desired `.c4z` driver files.
+
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
+
+   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
 
 ## Driver Setup
 
@@ -219,9 +223,40 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Removed
 -->
 
-## v20260806 - 2026-08-06
+## Unreleased
 
-Initial release.
+### Added
+
+- Added the Hatch Volume driver, presenting a device's volume as a dimmer for
+  integrations that only understand lights, such as Apple Home.
+- Added a Turn On Plays property to Hatch Volume, choosing what turning it on
+  starts. A favorite starts at its own volume, a sound at the Default On level.
+- Added Started Playing and Stopped Playing events to the Hatch Sound Machine,
+  which also fire for playback started from the Hatch app or the device itself.
+- Added Programming conditionals to the Hatch Sound Machine for whether it is
+  playing, and for which sound or favorite is playing.
+- Sounds and favorites now refresh on their own when they change in the Hatch
+  app, with no driver reload.
+- The Hatch Sound Machine now behaves as a normal room source: starting it takes
+  the room, and selecting another source stops it.
+
+### Fixed
+
+- Fixed the Hatch Night Light never reporting itself online, which could leave
+  it greyed out and unusable in Navigator.
+- Fixed stopping the sound machine turning off the whole room, which ended a
+  video session in rooms with a TV.
+- Fixed a second room off being sent behind the one you pressed, which could
+  switch a TV with a power toggle back on.
+- Fixed Hatch Volume listing favorites that share a name as identical entries,
+  where choosing either one started the first. Repeats now carry their touch
+  ring number, matching the Hatch app.
+- Fixed the sound machine reporting its volume continuously rather than only
+  when it changed, which made Programming watching the volume run constantly.
+- Fixed the companion drivers showing their last known state as though it were
+  live after the account driver lost its cloud connection.
+
+## v20260806 - 2026-08-06
 
 ### Added
 

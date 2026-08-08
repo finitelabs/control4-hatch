@@ -1,8 +1,8 @@
 <devicedata>
-  <name>Hatch Night Light</name>
+  <name>Hatch Volume</name>
   <version/>
   <manufacturer>Finite Labs</manufacturer>
-  <model>Hatch Night Light</model>
+  <model>Hatch Volume</model>
   <creator>Derek Miller</creator>
   <small image_source="c4z">icons/device_sm.png</small>
   <large image_source="c4z">icons/device_lg.png</large>
@@ -41,6 +41,17 @@
         <default>On</default>
       </property>
       <!-- #endif -->
+      <property>
+        <name>Volume Settings</name>
+        <type>LABEL</type>
+        <default>Volume Settings</default>
+      </property>
+      <property>
+        <name>Turn On Plays</name>
+        <type>DYNAMIC_LIST</type>
+        <default>(Select)</default>
+        <description>Sound or favorite to start when this dimmer is turned on. Populated from the Hatch account once connected.</description>
+      </property>
       <property>
         <name>Driver Settings</name>
         <type>LABEL</type>
@@ -110,15 +121,15 @@
     <load_group_support>False</load_group_support>
     <brightness_on_mode_preset>True</brightness_on_mode_preset>
     <brightness_on_mode_previous>True</brightness_on_mode_previous>
-    <color_on_mode_fade>True</color_on_mode_fade>
-    <color_on_mode_preset>True</color_on_mode_preset>
-    <color_on_mode_previous>True</color_on_mode_previous>
+    <color_on_mode_fade>False</color_on_mode_fade>
+    <color_on_mode_preset>False</color_on_mode_preset>
+    <color_on_mode_previous>False</color_on_mode_previous>
     <multi_click>False</multi_click>
     <has_extras>False</has_extras>
     <disable_flash>False</disable_flash>
     <brightness_rate_min>0</brightness_rate_min>
     <brightness_rate_max>65535</brightness_rate_max>
-    <supports_color>True</supports_color>
+    <supports_color>False</supports_color>
     <supports_color_correlated_temperature>False</supports_color_correlated_temperature>
     <supports_color_stop>False</supports_color_stop>
     <color_correlated_temperature_min>2000</color_correlated_temperature_min>
@@ -128,7 +139,7 @@
     <color_rate_max>65535</color_rate_max>
   </capabilities>
   <proxies>
-    <proxy proxybindingid="5001" primary="True" name="Hatch Night Light">light_v2</proxy>
+    <proxy proxybindingid="5001" primary="True" name="Hatch Volume">light_v2</proxy>
   </proxies>
   <connections>
     <connection>
@@ -153,7 +164,7 @@
       <linelevel>False</linelevel>
       <classes>
         <class>
-          <classname>HATCH_LIGHT</classname>
+          <classname>HATCH_VOLUME</classname>
         </class>
       </classes>
       <hidden>False</hidden>

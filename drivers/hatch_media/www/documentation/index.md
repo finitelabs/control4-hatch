@@ -173,6 +173,31 @@ The driver adds these commands for use in Composer programming:
 Volume, mute, and transport are also available through the standard room audio
 and media session controls, so they do not need dedicated programming commands.
 
+## Events
+
+The driver fires these events for use in Composer programming:
+
+| Event               | Description                 |
+| ------------------- | --------------------------- |
+| **Started Playing** | The device started playing. |
+| **Stopped Playing** | The device stopped playing. |
+
+> **Note:** Both fire whatever started or stopped playback, including the Hatch
+> app and the device itself, not only Control4.
+
+## Conditionals
+
+The driver adds these conditionals for use in Composer programming:
+
+| Conditional          | Description                                   |
+| -------------------- | --------------------------------------------- |
+| **Playback state**   | Whether the device is playing.                |
+| **Current sound**    | The sound playing now, chosen from a list.    |
+| **Current favorite** | The favorite playing now, chosen from a list. |
+
+> **Note:** An idle device matches nothing, so it fails an "is" test and passes
+> an "is not" test.
+
 <!-- #ifdef DRIVERCENTRAL -->
 
 # <span style="color:#13294C">Developer Information</span>

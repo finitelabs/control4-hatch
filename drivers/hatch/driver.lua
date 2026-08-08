@@ -3,8 +3,9 @@
 -- Owns the single cloud connection for the whole Hatch account (auth -> AWS IoT
 -- MQTT -> device shadows; see src/hatch/*), discovers devices, and exposes a
 -- dynamic binding per device-function that the companion drivers bind to:
---   HATCH_MEDIA -> hatch_media (sound machine)
---   HATCH_LIGHT -> hatch_light (night light)
+--   HATCH_MEDIA  -> hatch_media  (sound machine)
+--   HATCH_LIGHT  -> hatch_light  (night light)
+--   HATCH_VOLUME -> hatch_volume (volume as a dimmer)
 -- Companions send ENTITY_COMMAND over the binding; the coordinator maps it to a
 -- shadow update. Shadow state is pushed back to companions as UPDATE_STATE.
 
@@ -18,6 +19,7 @@ DRIVER_FILENAMES = {
   "hatch.c4z",
   "hatch_media.c4z",
   "hatch_light.c4z",
+  "hatch_volume.c4z",
 }
 --#endif
 
@@ -41,6 +43,7 @@ local githubUpdater = require("lib.github-updater")
 --- Binding namespaces / companion connection classes.
 local NS_MEDIA = "HATCH_MEDIA"
 local NS_LIGHT = "HATCH_LIGHT"
+local NS_VOLUME = "HATCH_VOLUME"
 
 gInitialized = false
 
@@ -55,6 +58,9 @@ local catalogByThing = {}
 --- thing -> last non-black { red, green, blue } the device showed. An off light
 --- reports black, so live state alone can't answer "what colour was this?".
 local lastColorByThing = {}
+--- thing -> last seen shadow dataVersion. See noteDataVersion().
+local dataVersionByThing = {}
+local CATALOG_REFRESH_DELAY = 5 * ONE_SECOND
 
 --- Sound machine exists on every Hatch; the night light on all but Rest Mini.
 local function hasLight(product)
@@ -153,6 +159,9 @@ local function pushMediaState(thing)
       soundTitle = state.isPlaying and resolveNowTitle(state, catalog) or nil,
       soundImage = state.isPlaying and resolveNowImage(state, catalog) or nil,
       volumePct = state.volumePct,
+      -- srId is only meaningful while a routine runs; the device keeps its last
+      -- one when idle or playing a plain sound.
+      favoriteId = state.playing == "routine" and state.srId or nil,
     }),
     sounds = SerializeSafe(catalog.sounds or {}),
     favorites = SerializeSafe(catalog.favorites or {}),
@@ -180,6 +189,59 @@ local function pushLightState(thing)
   }, "NOTIFY")
 end
 
+--- Volume presented as a dimmer: brightness IS the volume percentage, and the
+--- light being on means the sound machine is playing. Its own binding so the
+--- sync lives in the driver, which can decline to send an echo; Programming has
+--- no way to express "this change came from the other side".
+local function pushVolumeState(thing)
+  local binding = bindings:getDynamicBinding(NS_VOLUME, thing)
+  if not binding then
+    return
+  end
+  local state = stateByThing[thing] or {}
+  local catalog = catalogByThing[thing] or {}
+  local params = {
+    state = SerializeSafe({
+      online = state.online,
+      on = state.isPlaying,
+      brightnessPct = state.volumePct,
+    }),
+  }
+  -- The companion needs the catalog to build its "what does on play" list, but
+  -- only once BOTH fetches have returned. They resolve independently and each
+  -- pushes, so sending a half-filled catalog would have the companion rebuild
+  -- its list with no favorites in it and drop the installer's saved choice.
+  -- Absent is not the same as empty here, which is why these are omitted rather
+  -- than defaulted to {}.
+  if catalog.sounds and catalog.favorites then
+    params.sounds = SerializeSafe(catalog.sounds)
+    params.favorites = SerializeSafe(catalog.favorites)
+  end
+  SendToProxy(binding.bindingId, "UPDATE_STATE", params, "NOTIFY")
+end
+
+--- Tell every bound companion the cloud connection dropped, so they report it
+--- instead of showing stale state as though it were live.
+local function pushDisconnect()
+  for _, ns in ipairs({ NS_MEDIA, NS_LIGHT, NS_VOLUME }) do
+    for _, binding in pairs(bindings:getDynamicBindings(ns)) do
+      if binding.bindingId then
+        SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
+      end
+    end
+  end
+end
+
+--- Re-push state on reconnect so companions leave the disconnected state
+--- without waiting for the next shadow update.
+local function pushAllState()
+  for thing, _ in pairs(devicesByThing) do
+    pushMediaState(thing)
+    pushLightState(thing)
+    pushVolumeState(thing)
+  end
+end
+
 --------------------------------------------------------------------------------
 -- ENTITY_COMMAND handling (companion -> coordinator -> shadow)
 --------------------------------------------------------------------------------
@@ -199,6 +261,79 @@ local function handleMediaCommand(thing, body)
     control(thing, Device.stop())
   elseif command == "volume" then
     control(thing, Device.setVolume(tonumber(body.level)))
+  end
+end
+
+--- The volume a favorite will apply, read from the routine rather than imposed.
+--- Lives in `steps[].sound.v` as a raw 0..65535 value; the sibling
+--- `steps[].color.i` is the light's brightness, not volume. First enabled step
+--- wins, since that is where a routine starts.
+local function favoriteVolumePct(fav)
+  if type(fav) ~= "table" then
+    return nil
+  end
+  for _, step in ipairs(fav.steps or {}) do
+    if type(step) == "table" and step.enabled ~= false and type(step.sound) == "table" then
+      local raw = tonumber(step.sound.v)
+      if raw and raw > 0 then
+        return Device.pctFromRaw(raw)
+      end
+    end
+  end
+  return nil
+end
+
+--- Volume-as-a-dimmer commands. Brightness maps straight to volume, on/off to
+--- play and stop. Setting brightness never starts playback: the Hatch accepts a
+--- volume change while stopped, so the level can be staged beforehand.
+local function handleVolumeCommand(thing, body)
+  local state = stateByThing[thing] or {}
+  local catalog = catalogByThing[thing] or {}
+  local command = body.command
+  if command == "on" then
+    -- The installer picks what "on" plays: the device's last sound is often
+    -- absent from the browsable catalog, so resuming it can do nothing at all.
+    if body.favoriteId then
+      -- A favorite applies its own volume, so the preset is deliberately ignored.
+      control(thing, Device.playFavorite(body.favoriteId))
+      -- Show the favorite's level now rather than waiting for the device to
+      -- echo it, so the slider does not sit at the old value. The next shadow
+      -- update confirms it.
+      local fav
+      for _, candidate in ipairs(catalog.favorites or {}) do
+        if tostring(candidate.id) == tostring(body.favoriteId) then
+          fav = candidate
+          break
+        end
+      end
+      local pct = favoriteVolumePct(fav)
+      log:debug("Favorite %s volume resolved to %s", tostring(body.favoriteId), tostring(pct))
+      if pct then
+        stateByThing[thing] = stateByThing[thing] or {}
+        stateByThing[thing].volumePct = pct
+        -- The companion reports 0 while not playing, so an optimistic level
+        -- without this reads as off until the shadow lands.
+        stateByThing[thing].isPlaying = true
+        pushVolumeState(thing)
+      end
+    else
+      -- A sound carries no volume, so the level goes out with it. See
+      -- Device.playSound().
+      local level = tonumber(body.brightness)
+      local soundId = body.soundId or state.soundId
+      local sound = soundId and (catalog.soundsById or {})[tostring(soundId)]
+      if sound then
+        control(thing, Device.playSound(sound, level and level > 0 and level or nil))
+      elseif level and level > 0 then
+        control(thing, Device.setVolume(level))
+      end
+    end
+  elseif command == "off" then
+    -- Stop only: leaving the volume alone means the next start is not silent.
+    control(thing, Device.stop())
+  elseif command == "setBrightness" then
+    local level = tonumber(body.brightness) or 0
+    control(thing, Device.setVolume(level))
   end
 end
 
@@ -266,6 +401,21 @@ local function setupDeviceBindings(device)
     end
   end
 
+  local volumeBinding =
+    bindings:getOrAddDynamicBinding(NS_VOLUME, thing, "PROXY", true, device.name .. " Volume", NS_VOLUME)
+  if volumeBinding then
+    RFP[volumeBinding.bindingId] = function(_idBinding, strCommand, tParams, _args)
+      if strCommand == "REFRESH_STATE" then
+        pushVolumeState(thing)
+      elseif strCommand == "ENTITY_COMMAND" then
+        handleVolumeCommand(thing, DeserializeSafe(Select(tParams, "body")) or {})
+      end
+    end
+    OBC[volumeBinding.bindingId] = function()
+      pushVolumeState(thing)
+    end
+  end
+
   if hasLight(device.product) then
     local lightBinding =
       bindings:getOrAddDynamicBinding(NS_LIGHT, thing, "PROXY", true, device.name .. " Night Light", NS_LIGHT)
@@ -329,6 +479,7 @@ local function loadCatalog(device)
     catalogByThing[thing].soundsById = soundsById
     log:info("Hatch: %s loaded %d sounds", device.name, #sounds)
     pushMediaState(thing)
+    pushVolumeState(thing)
 
     -- Fetched only once the catalog is usable, so a slow or failed artwork
     -- lookup can never hold up browsing or playback.
@@ -363,6 +514,36 @@ local function loadCatalog(device)
     catalogByThing[thing].favorites = items or {}
     log:info("Hatch: %s loaded %d favorites", device.name, #(items or {}))
     pushMediaState(thing)
+    pushVolumeState(thing)
+  end, function(err)
+    -- Without this the rejection goes nowhere: the companions are held back
+    -- until both fetches return, so a failure here reads as "this account has
+    -- no favorites" with nothing in the log to say otherwise.
+    log:warn("Hatch: %s favorite fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
+  end)
+end
+
+--- Reload a device's catalog when the account content behind it changes.
+---
+--- The shadow's dataVersion moves when sounds or favorites change and is
+--- otherwise static for weeks, so it signals a refetch without polling. One
+--- edit bumps it several times as the data syncs; re-arming the timer resets
+--- it, so the reload runs once after the bumps stop.
+local function noteDataVersion(thing, dataVersion)
+  if type(dataVersion) ~= "string" or dataVersion == "" then
+    return
+  end
+  local previous = dataVersionByThing[thing]
+  dataVersionByThing[thing] = dataVersion
+  if previous == nil or previous == dataVersion then
+    return
+  end
+  log:info("Hatch: %s content changed (%s -> %s); reloading catalog", thing, previous, dataVersion)
+  SetTimer("CatalogRefresh:" .. thing, CATALOG_REFRESH_DELAY, function()
+    local device = devicesByThing[thing]
+    if device then
+      loadCatalog(device)
+    end
   end)
 end
 
@@ -405,6 +586,9 @@ local function startConnection()
     onConnected = function(devices)
       devices = devices or {}
       devicesByThing = {}
+      -- Connecting reloads every catalog below, so the next shadow is a first
+      -- sighting rather than a change.
+      dataVersionByThing = {}
       local names = {}
       for _, device in ipairs(devices) do
         if device.thingName then
@@ -416,12 +600,16 @@ local function startConnection()
       end
       setConnectionStatus(string.format("Connected (%d device%s)", #devices, #devices == 1 and "" or "s"))
       UpdateProperty("Devices", table.concat(names, ", "))
+      -- Clear any lingering "Coordinator offline" on the companions. Shadow state
+      -- may be a moment behind, but a reconnect should not leave them stuck.
+      pushAllState()
       log:info("Hatch connected; %d device(s)", #devices)
     end,
     onShadow = function(thing, reported, _desired)
       if not reported then
         return
       end
+      noteDataVersion(thing, reported.dataVersion)
       local parsed = Device.parseState(reported)
       stateByThing[thing] = parsed
       if parsed and not (parsed.red == 0 and parsed.green == 0 and parsed.blue == 0) then
@@ -429,9 +617,11 @@ local function startConnection()
       end
       pushMediaState(thing)
       pushLightState(thing)
+      pushVolumeState(thing)
     end,
     onDisconnected = function()
       setConnectionStatus("Disconnected (retrying)")
+      pushDisconnect()
     end,
   })
   connection:start()
@@ -637,6 +827,7 @@ function EC.Reset_Driver(params)
     end
     bindings:deleteAllBindings(NS_MEDIA)
     bindings:deleteAllBindings(NS_LIGHT)
+    bindings:deleteAllBindings(NS_VOLUME)
     startConnection()
   end
 end

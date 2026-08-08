@@ -20,6 +20,8 @@ require("drivers-common-public.global.url")
 JSON = require("JSON")
 
 local log = require("lib.logging")
+local conditionals = require("lib.conditionals")
+local Favorites = require("hatch.favorites")
 
 local PROXY_BINDING = 5001
 local AMP_PROXY = 5002
@@ -39,6 +41,8 @@ local state = {}
 local mutedVolume = nil
 local wasPlaying = false
 local reconciled = false
+--- Defined below, but the conditionals need it before that point.
+local favoriteLabels
 Navigators = Navigators or {}
 Navigator = Navigator or {}
 
@@ -51,16 +55,89 @@ local function entityCommand(body)
   SendToProxy(COORD_BINDING, "ENTITY_COMMAND", { body = SerializeSafe(body) }, "NOTIFY")
 end
 
---- Select this media service as the room's audio source, which establishes the
---- Control4 listening session. Without it the sound plays on the Hatch but
---- Navigator shows no session to stop or adjust. deviceid is our media-service
---- proxy; Control4 resolves the path from there through the amplifier.
+-- Room source arbitration, and the two facts the rest of this section rests on.
+--
+-- Control4 switches a room's routing on its own but never stops the source it
+-- switched away from: ordinary gear falls silent once the room stops routing
+-- it, while the Hatch renders its own audio and keeps playing unheard. So the
+-- driver has to translate "you were deselected" into "actually stop".
+--
+-- ROOM_OFF is the only command that clears a room's audio session. deviceid=0
+-- and every AUDIO_OFF/DESELECT spelling were tried against a live room and are
+-- silent no-ops. It takes the whole room down, so every use of it below is
+-- guarded.
+
+--- The foreground device. Deliberately not CURRENT_AUDIO_DEVICE (1001), which a
+--- video source never touches, so watching that one misses a switch to the TV.
+local ROOM_VAR_SELECTED_DEVICE = 1000
+local ROOM_VAR_POWER_STATE = 1010
+
+--- An off room has no session to end, and ROOM_OFF re-broadcasts power to its
+--- devices: a TV with toggle power reads a second off as "turn on".
+local function roomIsOff(room)
+  return room ~= nil and tostring(C4:GetDeviceVariable(room, ROOM_VAR_POWER_STATE)) == "0"
+end
+
+--- Set while we stop ourselves because another source took the room, so the
+--- resulting stop does not release a room we no longer own. Time-limited: if
+--- that stop never arrives (device offline, or the app restarts playback first)
+--- a stuck flag would suppress the next real release and leave a ghost session.
+local yieldingRoom = false
+local YIELD_WINDOW = 30 * ONE_SECOND
+
+local function beginYield()
+  yieldingRoom = true
+  SetTimer("YieldRoom", YIELD_WINDOW, function()
+    yieldingRoom = false
+  end)
+end
+
+local function endYield()
+  yieldingRoom = false
+  CancelTimer("YieldRoom")
+end
+
+--- Select this media service as the room's audio source, establishing the
+--- listening session. Without it the sound plays on the Hatch but Navigator
+--- shows nothing to stop or adjust. Taking a room another source holds means
+--- turning it off first.
 local function selectAudioIn(rooms)
   local deviceId = C4:GetProxyDevices()
   log:info("Hatch media: SELECT_AUDIO_DEVICE %s in rooms [%s]", tostring(deviceId), table.concat(rooms or {}, ","))
   for _, roomId in ipairs(rooms or {}) do
+    local holder = tostring(C4:GetDeviceVariable(roomId, ROOM_VAR_SELECTED_DEVICE))
+    if holder ~= "0" and holder ~= tostring(deviceId) and not roomIsOff(roomId) then
+      log:info("Room %s held by device %s; taking it", tostring(roomId), holder)
+      C4:SendToDevice(roomId, "ROOM_OFF", {})
+    end
     C4:SendToDevice(roomId, "SELECT_AUDIO_DEVICE", { deviceid = deviceId })
   end
+end
+
+--- Stop playback when the room's audio moves to another source, so whichever
+--- source was picked last is the one playing.
+local function watchRoomSelection()
+  local room = tonumber(C4:RoomGetId())
+  if not room then
+    return
+  end
+  RegisterVariableListener(room, ROOM_VAR_SELECTED_DEVICE, function(_idDevice, _idVariable, strValue)
+    local selectedNow = tostring(strValue)
+    local mine = tostring(C4:GetProxyDevices())
+    -- 0 means the room went off, which already reaches us as a proxy OFF; only
+    -- act on a switch to a different source.
+    if selectedNow == "0" or selectedNow == mine then
+      return
+    end
+    if state.isPlaying == true then
+      log:info("Room %s switched to device %s; stopping", tostring(room), selectedNow)
+      -- The new source already owns the room. Releasing on the way out would
+      -- send ROOM_OFF and turn off the source that just took over.
+      beginYield()
+      entityCommand({ command = "stop" })
+    end
+  end)
+  log:debug("Watching room %s selected device", tostring(room))
 end
 
 --- Resolve the room set for a start-media action: the picker result
@@ -129,8 +206,19 @@ local function updateNowPlaying(title, subtitle, imageUrl)
   }, "COMMAND", true)
 end
 
+--- Last volume reported to the proxy. Every shadow update pushes state and
+--- SET_VOLUME_LEVEL reports optimistically, so without this the volume is
+--- re-notified constantly and anything programming against it fires on every
+--- push rather than on real changes.
+local lastVolumeNotified = nil
+
 local function notifyVolume(pct)
-  C4:SendToProxy(AMP_PROXY, "VOLUME_LEVEL_CHANGED", { OUTPUT = AUDIO_OUTPUT, LEVEL = tonumber(pct) or 0 }, "NOTIFY")
+  pct = tonumber(pct) or 0
+  if lastVolumeNotified == pct then
+    return
+  end
+  lastVolumeNotified = pct
+  C4:SendToProxy(AMP_PROXY, "VOLUME_LEVEL_CHANGED", { OUTPUT = AUDIO_OUTPUT, LEVEL = pct }, "NOTIFY")
 end
 
 local function notifyMute(muted)
@@ -138,10 +226,115 @@ local function notifyMute(muted)
 end
 
 --------------------------------------------------------------------------------
+-- Programming conditionals
+--------------------------------------------------------------------------------
+
+local CONDITIONALS_NS = "HatchMedia"
+
+local function currentSoundTitle()
+  if state.isPlaying ~= true then
+    return nil
+  end
+  return state.soundTitle
+end
+
+--- Favorite currently playing, or nil when idle or playing a plain sound.
+local function currentFavoriteLabel()
+  if state.isPlaying ~= true or state.favoriteId == nil then
+    return nil
+  end
+  local labels = favoriteLabels()
+  for i, fav in ipairs(favorites) do
+    if tostring(fav.id) == tostring(state.favoriteId) then
+      return labels[i]
+    end
+  end
+  return nil
+end
+
+--- Compare the live value against the programmer's choice. Nothing playing
+--- matches nothing, so an idle device fails an EQUAL test and passes NOT_EQUAL.
+local function conditionalMatches(current, tParams)
+  local matched = current ~= nil and Favorites.listSafe(current) == Select(tParams, "VALUE")
+  if Select(tParams, "LOGIC") == "NOT_EQUAL" then
+    return not matched
+  end
+  return matched
+end
+
+--- (Re)register the conditionals, whose item lists come from the catalog and so
+--- are not known at startup. Every state push carries the catalog, so the
+--- signature keeps an unchanged one from being rewritten and persisted on every
+--- volume report.
+local lastConditionalSignature = nil
+
+local function registerConditionals()
+  local titlesSig = {}
+  for _, sound in ipairs(sounds) do
+    titlesSig[#titlesSig + 1] = tostring(sound.title)
+  end
+  for _, label in ipairs(favoriteLabels()) do
+    titlesSig[#titlesSig + 1] = tostring(label)
+  end
+  local signature = table.concat(titlesSig, "\30")
+  if signature == lastConditionalSignature then
+    return
+  end
+  lastConditionalSignature = signature
+
+  -- Independent of the catalog, so this works before any sounds arrive.
+  conditionals:upsertConditional(CONDITIONALS_NS, "is_playing", {
+    type = "BOOL",
+    condition_statement = "Playback state",
+    description = "NAME is STRING",
+    true_text = "Playing",
+    false_text = "Stopped",
+  }, function(_strConditionName, tParams)
+    local isPlaying = state.isPlaying == true
+    local test = Select(tParams, "VALUE") == "Playing"
+    if Select(tParams, "LOGIC") == "NOT_EQUAL" then
+      return test ~= isPlaying
+    end
+    return test == isPlaying
+  end)
+
+  local titles = {}
+  for _, sound in ipairs(sounds) do
+    if sound.title then
+      titles[#titles + 1] = Favorites.listSafe(sound.title)
+    end
+  end
+  conditionals:upsertConditional(CONDITIONALS_NS, "current_sound", {
+    type = "LIST",
+    condition_statement = "Current sound",
+    description = "the sound playing on NAME is LOGIC STRING",
+    list_items = table.concat(titles, ","),
+  }, function(_strConditionName, tParams)
+    return conditionalMatches(currentSoundTitle(), tParams)
+  end)
+
+  local labels = {}
+  for _, label in ipairs(favoriteLabels()) do
+    labels[#labels + 1] = Favorites.listSafe(label)
+  end
+  conditionals:upsertConditional(CONDITIONALS_NS, "current_favorite", {
+    type = "LIST",
+    condition_statement = "Current favorite",
+    description = "the favorite playing on NAME is LOGIC STRING",
+    list_items = table.concat(labels, ","),
+  }, function(_strConditionName, tParams)
+    return conditionalMatches(currentFavoriteLabel(), tParams)
+  end)
+
+  log:debug("Registered conditionals: %d sound(s), %d favorite(s)", #titles, #labels)
+end
+
+--------------------------------------------------------------------------------
 -- State from coordinator
 --------------------------------------------------------------------------------
 
 local function applyState(tParams)
+  local catalogChanged = false
   local newSounds = DeserializeSafe(Select(tParams, "sounds"))
   if type(newSounds) == "table" then
     sounds = newSounds
@@ -153,14 +346,19 @@ local function applyState(tParams)
         soundsByTitle[s.title] = s
       end
     end
+    catalogChanged = true
   end
   local newFavorites = DeserializeSafe(Select(tParams, "favorites"))
   if type(newFavorites) == "table" then
     favorites = newFavorites
+    catalogChanged = true
   end
   local newArtwork = DeserializeSafe(Select(tParams, "artwork"))
   if type(newArtwork) == "table" then
     artById = newArtwork
+  end
+  if catalogChanged then
+    registerConditionals()
   end
 
   state = DeserializeSafe(Select(tParams, "state")) or {}
@@ -172,6 +370,34 @@ local function applyState(tParams)
   local room = tonumber(C4:RoomGetId())
   local selected = room and tostring(C4:GetDeviceVariable(room, 1001))
   local mine = tostring(C4:GetProxyDevices())
+
+  --- End the room session when we hold it, so Navigator does not leave a session
+  --- reading "Off". Each guard below is a room we must not take down.
+  local function releaseRoom()
+    if selected ~= mine then
+      return
+    end
+    -- Something else took the room; this stop is us getting out of its way.
+    if yieldingRoom then
+      log:debug("Yielded room %s to another source; not releasing", tostring(room))
+      return
+    end
+    -- CURRENT_AUDIO_DEVICE can still point at us while a video source holds the
+    -- foreground, since a video source never clears it.
+    local foreground = room and tostring(C4:GetDeviceVariable(room, ROOM_VAR_SELECTED_DEVICE))
+    if foreground and foreground ~= "0" and foreground ~= mine then
+      log:debug("Room %s now on device %s; not releasing", tostring(room), foreground)
+      return
+    end
+    -- Usually this stop is the tail of a room-off the user just pressed.
+    if roomIsOff(room) then
+      log:debug("Room %s already off; not releasing", tostring(room))
+      return
+    end
+    log:debug("Releasing room %s", tostring(room))
+    C4:SendToDevice(room, "ROOM_OFF", {})
+  end
+
   if not reconciled then
     -- First state after a (re)load: wasPlaying is false, so the transition
     -- logic below can't reconcile a selection made before the reload. Sync both
@@ -182,10 +408,11 @@ local function applyState(tParams)
       if selected == "0" then
         selectAudioIn({ room })
       end
-    elseif selected == mine then
-      C4:SendToDevice(room, "ROOM_OFF", {})
+    else
+      releaseRoom()
     end
   elseif nowPlaying and not wasPlaying then
+    C4:FireEvent("Started Playing")
     -- Device-initiated play: select our room only if its audio is off, so we
     -- never steal a room already listening to something else (a no-op when a
     -- Control4-initiated play already pre-selected us).
@@ -193,12 +420,12 @@ local function applyState(tParams)
       selectAudioIn({ room })
     end
   elseif wasPlaying and not nowPlaying then
+    C4:FireEvent("Stopped Playing")
     -- Playback stopped, often externally (Hatch app, touch ring, or the device
     -- dropping offline). If we're still the selected source, end the session so
     -- C4 doesn't leave a ghost "Off" now-playing card up.
-    if selected == mine then
-      C4:SendToDevice(room, "ROOM_OFF", {})
-    end
+    releaseRoom()
+    endYield()
   end
   wasPlaying = nowPlaying
 
@@ -222,27 +449,10 @@ local function applyState(tParams)
   UpdateProperty("Driver Status", state.online == false and "Device offline" or "Connected")
 end
 
---- Display labels for the favorites list. The Hatch app allows duplicate names
---- (two "Brown Noise" favorites differing only in volume/color) and the API
---- carries no other label, so repeats get an occurrence counter. Indexed to
---- line up with the favorites array.
-local function favoriteLabels()
-  local totals = {}
-  for _, fav in ipairs(favorites) do
-    local name = fav.name or ("Favorite " .. tostring(fav.id))
-    totals[name] = (totals[name] or 0) + 1
-  end
-  local seen, labels = {}, {}
-  for i, fav in ipairs(favorites) do
-    local name = fav.name or ("Favorite " .. tostring(fav.id))
-    if (totals[name] or 0) > 1 then
-      seen[name] = (seen[name] or 0) + 1
-      labels[i] = string.format("%s (%d)", name, seen[name])
-    else
-      labels[i] = name
-    end
-  end
-  return labels
+--- Display labels for the favorites list, indexed to line up with the favorites
+--- array. Shared with the volume dimmer so both render the same names.
+function favoriteLabels()
+  return Favorites.labels(favorites)
 end
 
 --------------------------------------------------------------------------------
@@ -445,17 +655,9 @@ function EC.Play_Sound(params)
 end
 
 function EC.Play_Favorite(params)
-  local label = params and params.Favorite
-  if not label then
-    return
-  end
-  -- Resolve the (de-duplicated) label back to a favorite id.
-  local labels = favoriteLabels()
-  for i, l in ipairs(labels) do
-    if l == label then
-      entityCommand({ command = "favorite", favoriteId = favorites[i].id })
-      return
-    end
+  local favorite = Favorites.byLabel(favorites, params and params.Favorite)
+  if favorite then
+    entityCommand({ command = "favorite", favoriteId = favorite.id })
   end
 end
 
@@ -516,6 +718,10 @@ function OnDriverLateInit()
   gInitialized = true
   UpdateProperty("Driver Status", "Ready")
   pcall(hideAmplifierFromNavigators)
+  pcall(watchRoomSelection)
+  -- Register up front so the conditionals exist in Composer before any catalog
+  -- arrives; the sound and favorite lists fill in when the coordinator pushes.
+  registerConditionals()
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 

@@ -100,23 +100,30 @@ end
 -- Each returns the `state.desired` table for Connection:updateShadow().
 
 --- Play a sound. `sound` = { id, url }.
-function Device.playSound(sound)
-  return {
-    current = {
-      -- Clear any active routine. The device only re-triggers a routine when
-      -- srId CHANGES; leaving a stale srId here means selecting that same
-      -- favorite afterwards produces no shadow delta and silently does nothing.
-      srId = 0,
-      playing = "remote",
-      step = 1,
-      sound = {
-        id = sound.id,
-        url = sound.url,
-        mute = false,
-        ["until"] = "indefinite", -- `until` is a Lua keyword, so quote the key
-      },
+--- @param sound table catalog entry { id, url }
+--- @param volumePct? number optional volume to apply in the same update
+function Device.playSound(sound, volumePct)
+  local current = {
+    -- Clear any active routine. The device only re-triggers a routine when
+    -- srId CHANGES; leaving a stale srId here means selecting that same
+    -- favorite afterwards produces no shadow delta and silently does nothing.
+    srId = 0,
+    playing = "remote",
+    step = 1,
+    sound = {
+      id = sound.id,
+      url = sound.url,
+      mute = false,
+      ["until"] = "indefinite", -- `until` is a Lua keyword, so quote the key
     },
   }
+  -- Same shadow update rather than a separate setVolume, so the sound cannot
+  -- start at the previous level and jump. Favorites bring their own volume.
+  local pct = tonumber(volumePct)
+  if pct then
+    current.sound.v = rawFromPct(pct)
+  end
+  return { current = current }
 end
 
 --- Stop all playback (sound and routine).
