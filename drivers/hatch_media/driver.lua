@@ -78,6 +78,15 @@ local function roomIsOff(room)
   return room ~= nil and tostring(C4:GetDeviceVariable(room, ROOM_VAR_POWER_STATE)) == "0"
 end
 
+--- True when nothing else holds the room. Reads the foreground device, not
+--- CURRENT_AUDIO_DEVICE, which a video source never sets.
+local function roomIsFree(room)
+  if room == nil then
+    return false
+  end
+  return tostring(C4:GetDeviceVariable(room, ROOM_VAR_SELECTED_DEVICE)) == "0"
+end
+
 --- Set while we stop ourselves because another source took the room, so the
 --- resulting stop does not release a room we no longer own. Time-limited: if
 --- that stop never arrives (device offline, or the app restarts playback first)
@@ -405,7 +414,7 @@ local function applyState(tParams)
     -- a strand left selected with nothing playing.
     reconciled = true
     if nowPlaying then
-      if selected == "0" then
+      if selected == "0" and roomIsFree(room) then
         selectAudioIn({ room })
       end
     else
@@ -413,10 +422,9 @@ local function applyState(tParams)
     end
   elseif nowPlaying and not wasPlaying then
     C4:FireEvent("Started Playing")
-    -- Device-initiated play: select our room only if its audio is off, so we
-    -- never steal a room already listening to something else (a no-op when a
-    -- Control4-initiated play already pre-selected us).
-    if selected == "0" then
+    -- The device started itself, so only claim a free room. Taking one sends
+    -- ROOM_OFF, which stays reserved for the user picking the Hatch in Control4.
+    if selected == "0" and roomIsFree(room) then
       selectAudioIn({ room })
     end
   elseif wasPlaying and not nowPlaying then
