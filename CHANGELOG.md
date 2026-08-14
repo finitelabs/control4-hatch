@@ -43,6 +43,9 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   video session in rooms with a TV.
 - Fixed a second room off being sent behind the one you pressed, which could
   switch a TV with a power toggle back on.
+- Fixed starting the sound machine from the device itself taking a room the TV
+  was holding, which switched a TV with a power toggle back on. It now takes a
+  room only when you start it from Control4.
 - Fixed Hatch Volume listing favorites that share a name as identical entries,
   where choosing either one started the first. Repeats now carry their touch
   ring number, matching the Hatch app.
