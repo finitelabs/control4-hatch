@@ -37,6 +37,9 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
+- Fixed a reconnect or credential change on the account driver briefly reporting
+  its companion drivers as disconnected, and a deliberate stop being reported as
+  a disconnect.
 - Fixed the Hatch Night Light never reporting itself online, which could leave
   it greyed out and unusable in Navigator.
 - Fixed stopping the sound machine turning off the whole room, which ended a
