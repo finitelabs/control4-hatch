@@ -413,7 +413,11 @@ local function applyState(tParams)
     -- a strand left selected with nothing playing.
     reconciled = true
     if nowPlaying then
-      if selected == "0" and roomIsFree(room) then
+      -- The reload leaves the room's vars pointing at us, so re-select whenever
+      -- the room is still ours or free, not only when it reads as cleared;
+      -- otherwise a live session that lost its card never gets it back.
+      local foreground = room and tostring(C4:GetDeviceVariable(room, ROOM_VAR_SELECTED_DEVICE))
+      if roomIsFree(room) or foreground == mine then
         selectAudioIn({ room })
       end
     else

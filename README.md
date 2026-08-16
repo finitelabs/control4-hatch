@@ -250,6 +250,10 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
+- Fixed the Hatch Sound Machine losing its now-playing card and room session
+  after a driver reload while it was playing, leaving a session that read as
+  selected but could not be controlled until playback was restarted.
+
 - Fixed an automatic update sometimes leaving companion drivers on the previous
   version until the next update, which could make them stop responding in the
   meantime.
