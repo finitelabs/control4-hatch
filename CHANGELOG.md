@@ -22,9 +22,11 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
-- Fixed the Hatch Sound Machine losing its now-playing card and room session
-  after a driver reload while it was playing, leaving a session that read as
-  selected but could not be controlled until playback was restarted.
+- Fixed the Hatch Sound Machine sometimes turning itself off shortly after a
+  driver update or account reconnect while it was playing, where a stale
+  playback update arriving as the connection resettled re-claimed and then
+  released the room. It also rebuilds its now-playing card after such a reload
+  instead of leaving a session that reads as selected but cannot be controlled.
 
 <!-- #ifndef DRIVERCENTRAL -->
 

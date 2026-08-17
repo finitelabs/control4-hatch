@@ -45,12 +45,31 @@ local favoriteLabels
 Navigators = Navigators or {}
 Navigator = Navigator or {}
 
+--- Playback state we've committed to (last command sent, or adopted on reload).
+--- A reload re-pushes stale state, so a contradicting update is dropped below.
+local pendingIntent = nil
+local INTENT_WINDOW = 8 * ONE_SECOND
+
+local function setIntent(playing)
+  pendingIntent = playing and true or false
+  SetTimer("PlaybackIntent", INTENT_WINDOW, function()
+    pendingIntent = nil
+  end)
+end
+
 --------------------------------------------------------------------------------
 -- Coordinator link
 --------------------------------------------------------------------------------
 
 --- Send an action to the coordinator, which maps it to a device shadow update.
 local function entityCommand(body)
+  if body then
+    if body.command == "stop" then
+      setIntent(false)
+    elseif body.command == "play" or body.command == "favorite" then
+      setIntent(true)
+    end
+  end
   SendToProxy(COORD_BINDING, "ENTITY_COMMAND", { body = SerializeSafe(body) }, "NOTIFY")
 end
 
@@ -369,12 +388,20 @@ local function applyState(tParams)
     registerConditionals()
   end
 
-  state = DeserializeSafe(Select(tParams, "state")) or {}
+  local incoming = DeserializeSafe(Select(tParams, "state")) or {}
+  local nowPlaying = incoming.isPlaying == true
+
+  -- A reported state contradicting our committed intent is a stale reload echo;
+  -- acting on it re-arbitrates the room and stops us. Leave the last state in place.
+  if pendingIntent ~= nil and nowPlaying ~= pendingIntent then
+    return
+  end
+
+  state = incoming
 
   -- Keep the room session in sync with device-initiated playback: select
   -- ourselves when playback starts, release the room when it stops. `selected`
   -- is the room's CURRENT_SELECTED_AUDIO_DEVICE; `mine` is our proxy device.
-  local nowPlaying = state.isPlaying == true
   local room = tonumber(C4:RoomGetId())
   local selected = room and tostring(C4:GetDeviceVariable(room, 1001))
   local mine = tostring(C4:GetProxyDevices())
@@ -407,15 +434,12 @@ local function applyState(tParams)
   end
 
   if not reconciled then
-    -- First state after a (re)load: wasPlaying is false, so the transition
-    -- logic below can't reconcile a selection made before the reload. Sync both
-    -- directions once -- surface a live session that lost its card, or release
-    -- a strand left selected with nothing playing.
+    -- First state after a (re)load: reconcile once. Commit to it so the
+    -- reconnect's re-push can't flap the room, then restore the session if
+    -- playing (the room's vars still point at us) or release a dead strand.
     reconciled = true
+    setIntent(nowPlaying)
     if nowPlaying then
-      -- The reload leaves the room's vars pointing at us, so re-select whenever
-      -- the room is still ours or free, not only when it reads as cleared;
-      -- otherwise a live session that lost its card never gets it back.
       local foreground = room and tostring(C4:GetDeviceVariable(room, ROOM_VAR_SELECTED_DEVICE))
       if roomIsFree(room) or foreground == mine then
         selectAudioIn({ room })
