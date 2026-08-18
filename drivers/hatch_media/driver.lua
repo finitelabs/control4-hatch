@@ -49,11 +49,19 @@ Navigator = Navigator or {}
 --- A reload re-pushes stale state, so a contradicting update is dropped below.
 local pendingIntent = nil
 local INTENT_WINDOW = 8 * ONE_SECOND
+--- Set when the guard drops an update, so closing the window can pull the
+--- settled state rather than strand whatever that update also carried.
+local droppedWhilePending = false
 
 local function setIntent(playing)
   pendingIntent = playing and true or false
+  droppedWhilePending = false
   SetTimer("PlaybackIntent", INTENT_WINDOW, function()
     pendingIntent = nil
+    if droppedWhilePending then
+      droppedWhilePending = false
+      SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
+    end
   end)
 end
 
@@ -392,8 +400,10 @@ local function applyState(tParams)
   local nowPlaying = incoming.isPlaying == true
 
   -- A reported state contradicting our committed intent is a stale reload echo;
-  -- acting on it re-arbitrates the room and stops us. Leave the last state in place.
+  -- acting on it re-arbitrates the room and stops us. Drop it; closing the
+  -- window pulls fresh state so nothing it also carried is stranded.
   if pendingIntent ~= nil and nowPlaying ~= pendingIntent then
+    droppedWhilePending = true
     return
   end
 

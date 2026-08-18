@@ -59,6 +59,21 @@ end
 
 dofile("drivers/hatch_media/driver.lua")
 
+-- Capture coordinator sends so the test can assert a state refresh is requested.
+local sentToProxy = {}
+SendToProxy = function(_binding, command)
+  table.insert(sentToProxy, command)
+end
+local function refreshCount()
+  local n = 0
+  for _, c in ipairs(sentToProxy) do
+    if c == "REFRESH_STATE" then
+      n = n + 1
+    end
+  end
+  return n
+end
+
 local COORD_BINDING, PROXY_BINDING = 6001, 5001
 
 local function pushState(playing)
@@ -104,6 +119,26 @@ pushState(false)
 sentToDevice = {}
 pushState(true)
 check("after the window a genuine playing selects again", selectCount() == 1, "selects=" .. selectCount())
+
+-- 5) Dropping an echo is not losing it: closing the window pulls fresh state so
+--    any field that echo also carried (online, volume, card) is not stranded.
+ReceivedFromProxy(PROXY_BINDING, "STOP", {})
+pushState(false)
+sentToProxy = {}
+pushState(true)
+timers["PlaybackIntent"]()
+check(
+  "dropping an echo requests a state refresh when the window closes",
+  refreshCount() == 1,
+  "refreshes=" .. refreshCount()
+)
+
+-- 6) A window that dropped nothing does not refresh, so a normal stop stays quiet.
+ReceivedFromProxy(PROXY_BINDING, "STOP", {})
+pushState(false)
+sentToProxy = {}
+timers["PlaybackIntent"]()
+check("a window that dropped nothing does not refresh", refreshCount() == 0, "refreshes=" .. refreshCount())
 
 print(string.format("\n%d passed, %d failed", pass, fail))
 if fail > 0 then
