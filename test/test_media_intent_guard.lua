@@ -2,19 +2,10 @@
 -- reload must not re-select the room (which would fight the stop and oscillate).
 --
 -- Run from the driver root:
---   LUA_PATH="$PWD/test/?.lua;$PWD/src/?.lua;$PWD/vendor/?.lua;$PWD/vendor/?/init.lua;;" \
---     luajit -e "require('c4_shim')" test/test_media_intent_guard.lua
+--   make test
+-- `dofile` below resolves against the driver root, so this file needs that cwd.
 
-local pass, fail = 0, 0
-local function check(name, ok, detail)
-  if ok then
-    pass = pass + 1
-    print(string.format("  ok   %s", name))
-  else
-    fail = fail + 1
-    print(string.format("  FAIL %s%s", name, detail and ("  -> " .. tostring(detail)) or ""))
-  end
-end
+local T = require("testlib")
 
 require("drivers-common-public.global.lib")
 require("drivers-common-public.global.timer")
@@ -45,16 +36,6 @@ C4.SendToDevice = function(_self, _dev, command)
   elseif command == "ROOM_OFF" then
     roomVars[1000], roomVars[1001], roomVars[1010] = "0", "0", "0"
   end
-end
-
--- Capture the intent-clear timer so the test can lapse the window on demand.
-local timers = {}
-SetTimer = function(name, _ms, cb)
-  timers[name] = cb
-  return name
-end
-CancelTimer = function(name)
-  timers[name] = nil
 end
 
 dofile("drivers/hatch_media/driver.lua")
@@ -94,53 +75,56 @@ local function selectCount()
   return n
 end
 
--- 1) First playing state (the reload reconcile) claims the room.
+--- Lapse the intent window through the real timer layer. ShimFireTimers fires
+--- every armed timer, so cancel the driver's unrelated ones first: YieldRoom
+--- would release the room mid-case and LogMode would flip logging, neither of
+--- which the guard is being measured on.
+local function lapseIntentWindow()
+  CancelTimer("YieldRoom")
+  CancelTimer("LogMode")
+  ShimFireTimers()
+end
+
+T.section("A reload reconcile claims the room")
 sentToDevice = {}
 pushState(true)
-check("first playing state selects the room", selectCount() == 1, "selects=" .. selectCount())
+T.eq("first playing state selects the room", selectCount(), 1)
 
--- 2) We issue a stop (Navigator OFF -> entityCommand stop), arming intent=stopped.
+T.section("A stale echo after a stop is dropped")
+-- We issue a stop (Navigator OFF -> entityCommand stop), arming intent=stopped.
 ReceivedFromProxy(PROXY_BINDING, "STOP", {})
 -- The coordinator acknowledges the stop, so the room releases and wasPlaying
 -- goes false -- the state a lagging echo then contradicts.
 pushState(false)
-
--- 3) The coordinator re-pushes the stale "playing" state. The guard must drop it.
 sentToDevice = {}
 pushState(true)
-check("a stale playing echo after a stop does not re-select", selectCount() == 0, "selects=" .. selectCount())
+T.eq("a stale playing echo after a stop does not re-select", selectCount(), 0)
 
--- 4) The guard is time-bounded: once the window lapses, the echo is honoured.
---    Free the room, clear the guard, then a fresh not-playing -> playing selects.
-check("intent guard armed a bounded timer", type(timers["PlaybackIntent"]) == "function")
-timers["PlaybackIntent"]()
+T.section("The guard is time-bounded")
+T.truthy("intent guard armed a bounded timer", Timer["PlaybackIntent"])
+lapseIntentWindow()
+-- Free the room, clear the guard, then a fresh not-playing -> playing selects.
 roomVars[1000], roomVars[1001], roomVars[1010] = "0", "0", "0"
 pushState(false)
 sentToDevice = {}
 pushState(true)
-check("after the window a genuine playing selects again", selectCount() == 1, "selects=" .. selectCount())
+T.eq("after the window a genuine playing selects again", selectCount(), 1)
 
--- 5) Dropping an echo is not losing it: closing the window pulls fresh state so
---    any field that echo also carried (online, volume, card) is not stranded.
+T.section("Closing the window reconciles what it dropped")
+-- Dropping an echo is not losing it: closing the window pulls fresh state so
+-- any field that echo also carried (online, volume, card) is not stranded.
 ReceivedFromProxy(PROXY_BINDING, "STOP", {})
 pushState(false)
 sentToProxy = {}
 pushState(true)
-timers["PlaybackIntent"]()
-check(
-  "dropping an echo requests a state refresh when the window closes",
-  refreshCount() == 1,
-  "refreshes=" .. refreshCount()
-)
+lapseIntentWindow()
+T.eq("dropping an echo requests a state refresh when the window closes", refreshCount(), 1)
 
--- 6) A window that dropped nothing does not refresh, so a normal stop stays quiet.
+-- A window that dropped nothing does not refresh, so a normal stop stays quiet.
 ReceivedFromProxy(PROXY_BINDING, "STOP", {})
 pushState(false)
 sentToProxy = {}
-timers["PlaybackIntent"]()
-check("a window that dropped nothing does not refresh", refreshCount() == 0, "refreshes=" .. refreshCount())
+lapseIntentWindow()
+T.eq("a window that dropped nothing does not refresh", refreshCount(), 0)
 
-print(string.format("\n%d passed, %d failed", pass, fail))
-if fail > 0 then
-  os.exit(1)
-end
+T.finish()
