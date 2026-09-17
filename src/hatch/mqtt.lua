@@ -102,7 +102,10 @@ function MQTT.disconnect()
 end
 
 --- Decode one packet from `data` at `pos` (default 1).
---- Returns (packet, nextPos), or nil if the buffer holds an incomplete packet.
+--- Returns (packet, nextPos) for a decoded packet, (nil, nextPos) for a frame whose
+--- declared Remaining Length is too short for its packet type, or nil when the
+--- buffer holds an incomplete packet. Remaining Length fixes the frame boundary
+--- even when the body is malformed, so nextPos still lets the caller resync.
 function MQTT.decode(data, pos)
   pos = pos or 1
   if #data < pos + 1 then
@@ -125,22 +128,37 @@ function MQTT.decode(data, pos)
   local pkt = { type = packetType, flags = bit.band(byte1, 0x0f) }
 
   if packetType == CONNACK then
+    if remaining < 2 then
+      return nil, nextPos
+    end
     pkt.name = "CONNACK"
     pkt.sessionPresent = bit.band(data:byte(bodyStart), 0x01)
     pkt.returnCode = data:byte(bodyStart + 1)
   elseif packetType == SUBACK then
+    if remaining < 3 then
+      return nil, nextPos
+    end
     pkt.name = "SUBACK"
     pkt.packetId = data:byte(bodyStart) * 256 + data:byte(bodyStart + 1)
     pkt.returnCode = data:byte(bodyStart + 2)
   elseif packetType == PUBACK then
+    if remaining < 2 then
+      return nil, nextPos
+    end
     pkt.name = "PUBACK"
     pkt.packetId = data:byte(bodyStart) * 256 + data:byte(bodyStart + 1)
   elseif packetType == PUBLISH then
-    pkt.name = "PUBLISH"
+    if remaining < 2 then
+      return nil, nextPos
+    end
     local topicLen = data:byte(bodyStart) * 256 + data:byte(bodyStart + 1)
+    local qos = bit.band(bit.rshift(byte1, 1), 0x03)
+    if remaining < 2 + topicLen + (qos > 0 and 2 or 0) then
+      return nil, nextPos
+    end
+    pkt.name = "PUBLISH"
     pkt.topic = data:sub(bodyStart + 2, bodyStart + 1 + topicLen)
     local p = bodyStart + 2 + topicLen
-    local qos = bit.band(bit.rshift(byte1, 1), 0x03)
     if qos > 0 then
       pkt.packetId = data:byte(p) * 256 + data:byte(p + 1)
       p = p + 2

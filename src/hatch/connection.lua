@@ -248,15 +248,19 @@ function Connection:onWsMessage(data)
   self.buffer = self.buffer .. (data or "")
   while #self.buffer > 0 do
     local pkt, nextPos = MQTT.decode(self.buffer, 1)
-    if not pkt then
+    if not nextPos then
       break -- incomplete; wait for more bytes
     end
     self.buffer = self.buffer:sub(nextPos)
-    local ok, err = pcall(function()
-      self:handlePacket(pkt)
-    end)
-    if not ok then
-      log:warn("Hatch: error handling %s: %s", tostring(pkt.name), tostring(err))
+    if pkt then
+      local ok, err = pcall(function()
+        self:handlePacket(pkt)
+      end)
+      if not ok then
+        log:warn("Hatch: error handling %s: %s", tostring(pkt.name), tostring(err))
+      end
+    else
+      log:warn("Hatch: dropped malformed MQTT frame")
     end
   end
 end
