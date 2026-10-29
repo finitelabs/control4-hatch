@@ -226,6 +226,13 @@ Displays the DriverCentral cloud license status.
 
 Enables or disables automatic driver updates. Default is `On`.
 
+<!-- #ifdef DRIVERCENTRAL -->
+
+Changing it on any Hatch, Hatch Sound Machine, Hatch Night Light or Hatch Volume
+item changes it on all of them, so the drivers update together.
+
+<!-- #endif -->
+
 <!-- #ifndef DRIVERCENTRAL -->
 
 ##### Update Channel \[ **_Production_** | Prerelease \]

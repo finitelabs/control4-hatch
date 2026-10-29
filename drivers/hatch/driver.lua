@@ -15,12 +15,6 @@ DC_X = nil
 DC_FILENAME = "hatch.c4z"
 --#else
 DRIVER_GITHUB_REPO = "finitelabs/control4-hatch"
-DRIVER_FILENAMES = {
-  "hatch.c4z",
-  "hatch_media.c4z",
-  "hatch_light.c4z",
-  "hatch_volume.c4z",
-}
 --#endif
 
 require("lib.utils")
@@ -35,6 +29,7 @@ local bindings = require("lib.bindings")
 local Api = require("hatch.api")
 local Connection = require("hatch.connection")
 local Device = require("hatch.device")
+local updateSettings = require("lib.update-settings")
 --#ifndef DRIVERCENTRAL
 local githubUpdater = require("lib.github-updater")
 --#endif
@@ -636,8 +631,7 @@ end
 
 --#ifndef DRIVERCENTRAL
 -- Device ids of every Hatch coordinator instance (one per Hatch account),
--- lowest first. Used to elect a single "leader" for update checks and to fan
--- property changes out to peers.
+-- lowest first. Used to elect a single "leader" for update checks.
 local function getHatchDriverIds()
   local drivers = C4:GetDevicesByC4iName(C4:GetDriverFileName()) or {}
   local ids = {}
@@ -648,27 +642,18 @@ local function getHatchDriverIds()
   return ids
 end
 
--- Push a property value to the other coordinator instances so the suite's update
--- settings (Update Channel / Automatic Updates) stay in lockstep across multiple
--- Hatch accounts. SetDeviceProperties only writes when the value differs, so this
--- can't loop.
-local function syncPropertyToOtherInstances(propertyName, propertyValue)
-  local myId = C4:GetDeviceID()
-  for _, deviceId in ipairs(getHatchDriverIds()) do
-    if deviceId ~= myId then
-      log:info("Syncing '%s' = '%s' to device %d", propertyName, propertyValue, deviceId)
-      SetDeviceProperties(deviceId, { [propertyName] = propertyValue }, true)
-    end
-  end
-end
-
 -- Update the whole suite (coordinator + companions) from GitHub. The account
--- driver owns the update for the suite; DRIVER_FILENAMES lists every c4z.
+-- driver owns the update for the suite; lib.driver-filenames lists every c4z.
 -- @param forceUpdate? boolean Force the update even if the driver is up to date.
 function UpdateDrivers(forceUpdate)
   log:trace("UpdateDrivers(%s)", forceUpdate)
   githubUpdater
-    :updateAll(DRIVER_GITHUB_REPO, DRIVER_FILENAMES, Properties["Update Channel"] == "Prerelease", forceUpdate)
+    :updateAll(
+      DRIVER_GITHUB_REPO,
+      require("lib.driver-filenames"),
+      Properties["Update Channel"] == "Prerelease",
+      forceUpdate
+    )
     :next(function(updatedDrivers)
       if not IsEmpty(updatedDrivers) then
         log:info("Updated driver(s): %s", table.concat(updatedDrivers, ","))
@@ -793,12 +778,10 @@ end
 
 function OPC.Automatic_Updates(propertyValue)
   log:trace("OPC.Automatic_Updates('%s')", propertyValue)
-  --#ifndef DRIVERCENTRAL
   if not gInitialized then
     return
   end
-  syncPropertyToOtherInstances("Automatic Updates", propertyValue)
-  --#endif
+  updateSettings:share("Automatic Updates", propertyValue)
 end
 
 --#ifndef DRIVERCENTRAL
@@ -807,13 +790,19 @@ function OPC.Update_Channel(propertyValue)
   if not gInitialized then
     return
   end
-  syncPropertyToOtherInstances("Update Channel", propertyValue)
+  updateSettings:share("Update Channel", propertyValue)
 end
 --#endif
 
 --------------------------------------------------------------------------------
 -- Command handlers (EC)
 --------------------------------------------------------------------------------
+
+--- An update setting changed on another item.
+function EC.SET_UPDATE_SETTING(params)
+  log:trace("EC.SET_UPDATE_SETTING(%s)", params)
+  updateSettings:take(params)
+end
 
 function EC.Reconnect(_params)
   log:info("Reconnect requested")

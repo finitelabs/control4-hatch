@@ -24,6 +24,9 @@ require("drivers-common-public.global.timer")
 JSON = require("JSON")
 
 local log = require("lib.logging")
+--#ifdef DRIVERCENTRAL
+local updateSettings = require("lib.update-settings")
+--#endif
 
 local PROXY_BINDING = 5001
 local COORD_BINDING = 5002
@@ -291,3 +294,18 @@ function OPC.Driver_Status(_v) end
 function OPC.Driver_Version(_v)
   C4:UpdateProperty("Driver Version", C4:GetDriverConfigInfo("version"))
 end
+
+--#ifdef DRIVERCENTRAL
+function OPC.Automatic_Updates(propertyValue)
+  log:trace("OPC.Automatic_Updates('%s')", propertyValue)
+  if gInitialized then
+    updateSettings:share("Automatic Updates", propertyValue)
+  end
+end
+
+--- An update setting changed on another item.
+function EC.SET_UPDATE_SETTING(params)
+  log:trace("EC.SET_UPDATE_SETTING(%s)", params)
+  updateSettings:take(params)
+end
+--#endif
