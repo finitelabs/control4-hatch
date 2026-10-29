@@ -120,7 +120,9 @@ Displays the DriverCentral cloud license status.
 
 #### Automatic Updates \[ Off | **_On_** \]
 
-Enables or disables automatic driver updates via DriverCentral. Default is `On`.
+Enables or disables automatic driver updates via DriverCentral. Changing it on
+any Hatch, Hatch Sound Machine, Hatch Night Light or Hatch Volume item changes
+it on all of them, so the drivers update together. Default is `On`.
 
 <!-- #endif -->
 

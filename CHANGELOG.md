@@ -36,6 +36,16 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 <!-- #endif -->
 
+<!-- #ifdef DRIVERCENTRAL -->
+
+### Changed
+
+- Changing Automatic Updates on any Hatch, Hatch Sound Machine, Hatch Night
+  Light or Hatch Volume item now changes it on all of them, so the drivers
+  update together.
+
+<!-- #endif -->
+
 ## v20260816 - 2026-08-16
 
 ### Added

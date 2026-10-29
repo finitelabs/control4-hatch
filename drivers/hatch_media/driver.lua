@@ -21,6 +21,9 @@ JSON = require("JSON")
 local log = require("lib.logging")
 local conditionals = require("lib.conditionals")
 local Favorites = require("hatch.favorites")
+--#ifdef DRIVERCENTRAL
+local updateSettings = require("lib.update-settings")
+--#endif
 
 local PROXY_BINDING = 5001
 local AMP_PROXY = 5002
@@ -802,3 +805,18 @@ function OPC.Driver_Status(_v) end
 function OPC.Driver_Version(_v)
   C4:UpdateProperty("Driver Version", C4:GetDriverConfigInfo("version"))
 end
+
+--#ifdef DRIVERCENTRAL
+function OPC.Automatic_Updates(propertyValue)
+  log:trace("OPC.Automatic_Updates('%s')", propertyValue)
+  if gInitialized then
+    updateSettings:share("Automatic Updates", propertyValue)
+  end
+end
+
+--- An update setting changed on another item.
+function EC.SET_UPDATE_SETTING(params)
+  log:trace("EC.SET_UPDATE_SETTING(%s)", params)
+  updateSettings:take(params)
+end
+--#endif
