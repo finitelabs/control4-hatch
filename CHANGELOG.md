@@ -20,6 +20,16 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
+<!-- #ifdef DRIVERCENTRAL -->
+
+### Added
+
+- Added a `Support Code` property to the Hatch, Hatch Night Light, Hatch Sound
+  Machine and Hatch Volume drivers. A code from Finite Labs support opens the
+  driver's Lua tab in Composer for an hour; leave it blank otherwise.
+
+<!-- #endif -->
+
 ### Fixed
 
 - Fixed the Hatch Sound Machine sometimes turning itself off shortly after a

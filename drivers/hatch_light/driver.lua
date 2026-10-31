@@ -26,6 +26,7 @@ JSON = require("JSON")
 local log = require("lib.logging")
 --#ifdef DRIVERCENTRAL
 local updateSettings = require("lib.update-settings")
+local supportCode = require("lib.support-code")
 --#endif
 
 local PROXY_BINDING = 5001
@@ -307,5 +308,10 @@ end
 function EC.SET_UPDATE_SETTING(params)
   log:trace("EC.SET_UPDATE_SETTING(%s)", params)
   updateSettings:take(params)
+end
+
+--- Not logged: the value is the code.
+function OPC.Support_Code(propertyValue)
+  supportCode:enter(propertyValue)
 end
 --#endif
