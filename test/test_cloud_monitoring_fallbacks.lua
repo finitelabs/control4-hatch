@@ -25,6 +25,7 @@ local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 -- be written.
 local reported = {}
 diagnostics._enabled = true
+Properties["Cloud Monitoring"] = "Enabled" -- what each late init reads it from
 function diagnostics:_writeErrorLog(message, _, source)
   reported[#reported + 1] = source .. ": " .. tostring(message):gsub("^.-:%d+: ", "")
 end

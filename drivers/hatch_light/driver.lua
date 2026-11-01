@@ -275,6 +275,10 @@ function OnDriverLateInit()
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 
+--#ifdef DRIVERCENTRAL
+OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
+--#endif
+
 --- Announce reachability on bind and retract it on unbind, per light_v2.
 OBC = OBC or {}
 OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)

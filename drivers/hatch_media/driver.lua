@@ -803,6 +803,10 @@ function OnDriverLateInit()
   SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 
+--#ifdef DRIVERCENTRAL
+OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
+--#endif
+
 function OPC.Log_Mode(v)
   log:setLogMode(v)
   CancelTimer("LogMode")
