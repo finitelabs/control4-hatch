@@ -345,9 +345,17 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     local ok, err = pcall(handler, idBinding, strCommand, tParams)
     if not ok then
       log:warn("Hatch volume command '%s' error: %s", strCommand, tostring(err))
+      --#ifdef DRIVERCENTRAL
+      diagnostics:captureError(tostring(err), nil, "RFP." .. strCommand)
+      --#endif
     end
   end
 end
+
+--#ifdef DRIVERCENTRAL
+-- The vendored dispatcher this replaces is what reports a proxy command's error.
+ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
+--#endif
 
 --------------------------------------------------------------------------------
 -- Lifecycle

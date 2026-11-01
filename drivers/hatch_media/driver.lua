@@ -684,11 +684,19 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
       else
         log:warn("Hatch media nav '%s' error: %s", strCommand, tostring(ret))
+        --#ifdef DRIVERCENTRAL
+        diagnostics:captureError(tostring(ret), nil, "RFP." .. strCommand)
+        --#endif
         DataReceivedError(idBinding, navId, seq, ret)
       end
     end
   end
 end
+
+--#ifdef DRIVERCENTRAL
+-- The vendored dispatcher this replaces is what reports a proxy command's error.
+ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
+--#endif
 
 --------------------------------------------------------------------------------
 -- Programming (GCPL lists + EC commands)
