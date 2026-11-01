@@ -24,6 +24,7 @@ local Favorites = require("hatch.favorites")
 --#ifdef DRIVERCENTRAL
 local updateSettings = require("lib.update-settings")
 local supportCode = require("lib.support-code")
+local diagnostics = require("lib.diagnostics")
 --#endif
 
 local PROXY_BINDING = 5001
@@ -683,11 +684,19 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
       else
         log:warn("Hatch media nav '%s' error: %s", strCommand, tostring(ret))
+        --#ifdef DRIVERCENTRAL
+        diagnostics:captureError(tostring(ret), nil, "RFP." .. strCommand)
+        --#endif
         DataReceivedError(idBinding, navId, seq, ret)
       end
     end
   end
 end
+
+--#ifdef DRIVERCENTRAL
+-- The vendored dispatcher this replaces is what reports a proxy command's error.
+ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
+--#endif
 
 --------------------------------------------------------------------------------
 -- Programming (GCPL lists + EC commands)
@@ -824,5 +833,16 @@ end
 --- Not logged: the value is the code.
 function OPC.Support_Code(propertyValue)
   supportCode:enter(propertyValue)
+end
+
+--- Turns Cloud Monitoring on or off.
+--- @param propertyValue string
+function OPC.Cloud_Monitoring(propertyValue)
+  diagnostics:setEnabled(propertyValue == "Enabled")
+end
+
+--- Prints a diagnostics report, and sends it while Cloud Monitoring is on.
+function EC.DiagnosticsSnapshot()
+  diagnostics:dumpSnapshot()
 end
 --#endif

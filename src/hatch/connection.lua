@@ -15,6 +15,9 @@ local MQTT = require("hatch.mqtt")
 local WebSocket = require("drivers-common-public.module.websocket")
 local JSON = require("JSON")
 local log = require("lib.logging")
+--#ifdef DRIVERCENTRAL
+local diagnostics = require("lib.diagnostics")
+--#endif
 
 local SHADOW_PREFIX = "$aws/things/"
 local KEEPALIVE_SECONDS = 60
@@ -258,6 +261,9 @@ function Connection:onWsMessage(data)
       end)
       if not ok then
         log:warn("Hatch: error handling %s: %s", tostring(pkt.name), tostring(err))
+        --#ifdef DRIVERCENTRAL
+        diagnostics:captureError(tostring(err), nil, "Hatch.onWsMessage")
+        --#endif
       end
     else
       log:warn("Hatch: dropped malformed MQTT frame")
@@ -272,7 +278,13 @@ function Connection:announceDown()
   end
   self.announcedDown = true
   if self.onDisconnected then
-    pcall(self.onDisconnected)
+    local ok, err = pcall(self.onDisconnected)
+    if not ok then
+      log:warn("Hatch: error in the disconnected callback: %s", tostring(err))
+      --#ifdef DRIVERCENTRAL
+      diagnostics:captureError(tostring(err), nil, "Hatch.onDisconnected")
+      --#endif
+    end
   end
 end
 
@@ -351,7 +363,13 @@ function Connection:onMqttConnected()
   end, true)
 
   if self.onConnected then
-    pcall(self.onConnected, self.devices)
+    local ok, err = pcall(self.onConnected, self.devices)
+    if not ok then
+      log:warn("Hatch: error in the connected callback: %s", tostring(err))
+      --#ifdef DRIVERCENTRAL
+      diagnostics:captureError(tostring(err), nil, "Hatch.onConnected")
+      --#endif
+    end
   end
 end
 
@@ -378,7 +396,13 @@ function Connection:onShadowMessage(topic, payload)
   end
 
   if self.onShadow then
-    pcall(self.onShadow, thing, reported, desired)
+    local ok, err = pcall(self.onShadow, thing, reported, desired)
+    if not ok then
+      log:warn("Hatch: error applying a shadow update: %s", tostring(err))
+      --#ifdef DRIVERCENTRAL
+      diagnostics:captureError(tostring(err), nil, "Hatch.onShadow")
+      --#endif
+    end
   end
 end
 

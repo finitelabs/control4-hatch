@@ -127,4 +127,19 @@ sentToProxy = {}
 lapseIntentWindow()
 T.eq("a window that dropped nothing does not refresh", refreshCount(), 0)
 
+T.section("Cloud Monitoring reports a coordinator push that raises")
+local diagnostics = require("lib.diagnostics")
+local reported = {}
+diagnostics._enabled = true
+diagnostics._writeErrorLog = function(_self, _message, _traceback, source)
+  table.insert(reported, source)
+end
+-- A state that is not a table raises in applyState.
+local ok = T.capture(function()
+  ReceivedFromProxy(COORD_BINDING, "UPDATE_STATE", { state = 5 })
+end)
+diagnostics._enabled, diagnostics._writeErrorLog = false, nil
+T.truthy("the error does not reach Director", ok)
+T.eq("one error is reported, from ReceivedFromProxy", table.concat(reported, ","), "ReceivedFromProxy")
+
 T.finish()
