@@ -287,10 +287,6 @@ Sets the logging mode. Default is `Off`.
 Leave it blank unless Finite Labs support gives you a code: it opens Composer's
 Lua tab to this driver for an hour.
 
-<!-- #endif -->
-
-<!-- #ifdef DRIVERCENTRAL -->
-
 ##### Cloud Monitoring \[ Disabled | **_Enabled_** \]
 
 When Enabled, the driver sends Finite Labs a short report once an hour, and a
@@ -335,10 +331,6 @@ Clears the driver's stored state and reconnects.
 
 Prints a report in the Lua output, and sends it to Finite Labs only while Cloud
 Monitoring is Enabled.
-
-<!-- #endif -->
-
-<!-- #ifdef DRIVERCENTRAL -->
 
 # <span style="color:#13294C">Developer Information</span>
 
