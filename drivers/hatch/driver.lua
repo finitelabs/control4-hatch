@@ -507,7 +507,6 @@ local function loadCatalog(device)
   end, function(err)
     log:warn("Hatch: %s sound fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
     --#ifdef DRIVERCENTRAL
-    -- lib.http rejects with a table; anything else is a Lua error or a reply the driver cannot read.
     if type(err) ~= "table" then
       diagnostics:captureError(tostring(err), nil, "Hatch.SoundFetch")
     end
@@ -525,7 +524,6 @@ local function loadCatalog(device)
     -- no favorites" with nothing in the log to say otherwise.
     log:warn("Hatch: %s favorite fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
     --#ifdef DRIVERCENTRAL
-    -- lib.http rejects with a table; anything else is a Lua error or a reply the driver cannot read.
     if type(err) ~= "table" then
       diagnostics:captureError(tostring(err), nil, "Hatch.FavoriteFetch")
     end
