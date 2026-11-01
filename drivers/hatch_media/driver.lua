@@ -787,8 +787,16 @@ function OnDriverLateInit()
   end
   gInitialized = true
   UpdateProperty("Driver Status", "Ready")
-  pcall(hideAmplifierFromNavigators)
-  pcall(watchRoomSelection)
+  local hidden, hideErr = pcall(hideAmplifierFromNavigators)
+  local watching, watchErr = pcall(watchRoomSelection)
+  --#ifdef DRIVERCENTRAL
+  if not hidden then
+    diagnostics:captureError(tostring(hideErr), nil, "HatchMedia.HideAmplifier")
+  end
+  if not watching then
+    diagnostics:captureError(tostring(watchErr), nil, "HatchMedia.WatchRooms")
+  end
+  --#endif
   -- Register up front so the conditionals exist in Composer before any catalog
   -- arrives; the sound and favorite lists fill in when the coordinator pushes.
   registerConditionals()

@@ -506,6 +506,11 @@ local function loadCatalog(device)
     end)
   end, function(err)
     log:warn("Hatch: %s sound fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
+    --#ifdef DRIVERCENTRAL
+    if type(err) ~= "table" then
+      diagnostics:captureError(tostring(err), nil, "Hatch.SoundFetch")
+    end
+    --#endif
   end)
 
   api:fetchRoutines(device.macAddress):next(function(items)
@@ -518,6 +523,11 @@ local function loadCatalog(device)
     -- until both fetches return, so a failure here reads as "this account has
     -- no favorites" with nothing in the log to say otherwise.
     log:warn("Hatch: %s favorite fetch failed: %s", device.name, tostring(type(err) == "table" and err.error or err))
+    --#ifdef DRIVERCENTRAL
+    if type(err) ~= "table" then
+      diagnostics:captureError(tostring(err), nil, "Hatch.FavoriteFetch")
+    end
+    --#endif
   end)
 end
 
