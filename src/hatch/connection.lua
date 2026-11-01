@@ -114,9 +114,14 @@ function Connection:teardownSocket(onComplete)
   -- held when the new one is allocated and leaks until the pool is exhausted and
   -- setupC4Connection asserts. openSocket therefore opens the new socket from
   -- inside this callback. (Mirrors control4-home-connect's Controller:connect.)
-  local ok = pcall(function()
+  local ok, err = pcall(function()
     ws:delete(onComplete)
   end)
+  --#ifdef DRIVERCENTRAL
+  if not ok then
+    diagnostics:captureError(tostring(err), nil, "Hatch.SocketDelete")
+  end
+  --#endif
   if not ok and onComplete then
     onComplete()
   end
@@ -138,6 +143,12 @@ function Connection:connectOnce()
   end, function(err)
     local msg = type(err) == "table" and (err.error or JSON:encode(err)) or tostring(err)
     log:warn("Hatch: auth chain failed: %s", msg)
+    --#ifdef DRIVERCENTRAL
+    -- lib.http rejects with a table; anything else is a Lua error or a reply the driver cannot read.
+    if type(err) ~= "table" then
+      diagnostics:captureError(msg, nil, "Hatch.AuthChain")
+    end
+    --#endif
     -- openSocket is never reached on this path, so no socket close will ever
     -- fire. Without this the companions keep reporting the last live state for
     -- as long as auth keeps failing.
@@ -186,32 +197,46 @@ function Connection:openSocket(creds)
         error("WebSocket:new returned nil")
       end
       self.ws = ws
-      ws:SetEstablishedFunction(function()
+      local function established()
         self:onWsEstablished()
-      end)
-      ws:SetProcessMessageFunction(function(_ws, data)
+      end
+      local function message(_ws, data)
         self:onWsMessage(data)
-      end)
+      end
       -- Both callbacks capture the socket they belong to. teardownSocket() nils
       -- self.ws before deleting, and the module defers the delete, so a replaced
       -- socket can still fire these. Without the guard its close would fan a
       -- disconnect out to every companion while the new socket is coming up.
-      ws:SetClosedByRemoteFunction(function()
+      local function closedByRemote()
         if self.ws ~= ws then
           return
         end
         self:onWsClosed("closed by remote")
-      end)
-      ws:SetOfflineFunction(function()
+      end
+      local function offline()
         if self.ws ~= ws then
           return
         end
         self:onWsClosed("offline")
-      end)
+      end
+      --#ifdef DRIVERCENTRAL
+      -- The WebSocket module runs each in a pcall of its own that only prints what it raises.
+      established = diagnostics:wrap(established, "Hatch.WsEstablished")
+      message = diagnostics:wrap(message, "Hatch.WsMessage")
+      closedByRemote = diagnostics:wrap(closedByRemote, "Hatch.WsClosedByRemote")
+      offline = diagnostics:wrap(offline, "Hatch.WsOffline")
+      --#endif
+      ws:SetEstablishedFunction(established)
+      ws:SetProcessMessageFunction(message)
+      ws:SetClosedByRemoteFunction(closedByRemote)
+      ws:SetOfflineFunction(offline)
       ws:Start()
     end)
     if not ok then
       log:warn("Hatch: WebSocket open failed (%s); will retry", tostring(err))
+      --#ifdef DRIVERCENTRAL
+      diagnostics:captureError(tostring(err), nil, "Hatch.SocketOpen")
+      --#endif
     end
   end)
 
