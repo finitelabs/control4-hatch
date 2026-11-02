@@ -740,6 +740,10 @@ function OnDriverLateInit()
   startConnection()
 end
 
+--#ifdef DRIVERCENTRAL
+OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
+--#endif
+
 function OnDriverDestroyed()
   if connection then
     connection:stop()
