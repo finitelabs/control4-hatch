@@ -6,7 +6,7 @@ distributions: drivercentral oss
 extra_build_secrets: ''
 extra_required_checks: ''
 github_org: finitelabs
-icon_style: shaped
+icon_style: square
 primary_color: '#13294C'
 project_description: Control4 drivers for Hatch integration. Connect your Control4
     system to Hatch Rest+ and Restore devices to control the sound machine, night
