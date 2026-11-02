@@ -127,8 +127,6 @@ on means the sound machine is playing.
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
 
-   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
-
 ## Driver Setup
 
 Add the Hatch account driver first and enter your account credentials, then add

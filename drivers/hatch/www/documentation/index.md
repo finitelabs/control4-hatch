@@ -166,8 +166,6 @@ documentation for setting it up.
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
 
-   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
-
 1. Select the newly added driver in the "System Design" tab. You will notice
    that the `Cloud Status` reflects the license state. If you have purchased a
    license it will show `License Activated`, otherwise `Trial Running` and
@@ -187,8 +185,6 @@ documentation for setting it up.
 
 1. Use the "Search" tab in Composer Pro to find the driver by name and add it to
    your project.
-
-   <img alt="Search Drivers" src="./images/search-drivers.png" width="250"/>
 
 <!-- #endif -->
 
