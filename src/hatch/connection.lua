@@ -179,7 +179,7 @@ function Connection:openSocket(creds)
     -- WebSocket:new) throws or silently stalls -- as it can right after a
     -- controller reboot before the network subsystem is ready -- this timer is
     -- what gets us back into the reconnect backoff instead of hanging in
-    -- "Connecting..." forever. Cancelled on MQTT CONNACK.
+    -- "Connecting..." forever. Canceled on MQTT CONNACK.
     self.connectTimer = SetTimer(self.connectTimer, CONNECT_TIMEOUT_MS, function()
       if not self.connected then
         log:warn("Hatch: WebSocket/MQTT handshake timed out; retrying")
