@@ -854,6 +854,9 @@ function EC.Reset_Driver(params)
     bindings:deleteAllBindings(NS_MEDIA)
     bindings:deleteAllBindings(NS_LIGHT)
     bindings:deleteAllBindings(NS_VOLUME)
+    --#ifdef DRIVERCENTRAL
+    UpdateProperty("Cloud Monitoring", "Enabled", true)
+    --#endif
     startConnection()
   end
 end
