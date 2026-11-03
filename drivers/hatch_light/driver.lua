@@ -71,8 +71,8 @@ local function notifyBrightness(pct)
   }, "NOTIFY")
 end
 
---- Tell the proxy the load is reachable. Without it Navigator greys the light
---- out however correct its brightness and colour reports are.
+--- Tell the proxy the load is reachable. Without it Navigator grays the light
+--- out however correct its brightness and color reports are.
 local function notifyOnline(online)
   SendToProxy(PROXY_BINDING, "ONLINE_CHANGED", { STATE = online and true or false }, "NOTIFY")
 end
