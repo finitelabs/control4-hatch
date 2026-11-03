@@ -79,7 +79,7 @@ local function notifyBrightness(pct)
   }, "NOTIFY")
 end
 
---- Tell the proxy the load is reachable. Without it Navigator greys the dimmer
+--- Tell the proxy the load is reachable. Without it Navigator grays the dimmer
 --- out however correct its brightness reports are.
 local function notifyOnline(online)
   SendToProxy(PROXY_BINDING, "ONLINE_CHANGED", { STATE = online and true or false }, "NOTIFY")
@@ -228,7 +228,7 @@ function RFP.ON(idBinding)
   local body = turnOnTarget() or {}
   body.command = "on"
   -- A sound carries no volume of its own, so start it at the dimmer's preset.
-  -- A favorite brings its own volume and colour, so leave it alone.
+  -- A favorite brings its own volume and color, so leave it alone.
   if not body.favoriteId then
     body.brightness = presetLevel()
   end

@@ -54,7 +54,7 @@ local stateByThing = {}
 --- thing -> { sounds, soundsById, favorites }.
 local catalogByThing = {}
 --- thing -> last non-black { red, green, blue } the device showed. An off light
---- reports black, so live state alone can't answer "what colour was this?".
+--- reports black, so live state alone can't answer "what color was this?".
 local lastColorByThing = {}
 --- thing -> last seen shadow dataVersion. See noteDataVersion().
 local dataVersionByThing = {}
@@ -353,7 +353,7 @@ local function handleLightCommand(thing, body)
   local red = tonumber(body.red) or state.red or 255
   local green = tonumber(body.green) or state.green or 255
   local blue = tonumber(body.blue) or state.blue or 255
-  -- An off light reports black; restore the last real colour instead, falling
+  -- An off light reports black; restore the last real color instead, falling
   -- back to white since the device refuses to illuminate on black.
   if red == 0 and green == 0 and blue == 0 then
     local last = lastColorByThing[thing] or {}

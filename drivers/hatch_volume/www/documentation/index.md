@@ -132,7 +132,7 @@ this way.
 
 `Turn On Plays` defaults to the first favorite, since a favorite is the only
 self-contained answer to what turning the dimmer on should start: it carries its
-own sound, volume and colour.
+own sound, volume and color.
 
 A favorite's volume is never overridden. The driver reads the level the routine
 will apply and reports it as the dimmer's brightness, so the slider matches what
@@ -208,7 +208,7 @@ only while Cloud Monitoring is Enabled.
 Selects what turning the dimmer on starts. Entries are prefixed `Favorite: ` or
 `Sound: `, because a sound and a favorite can share a name.
 
-A favorite plays at its own volume and colour, so the dimmer reports the level
+A favorite plays at its own volume and color, so the dimmer reports the level
 the favorite applies. A sound carries no volume of its own and starts at the
 light's `Default On` preset level instead.
 

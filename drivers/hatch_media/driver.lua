@@ -597,7 +597,7 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     if strCommand == "UPDATE_STATE" then
       applyState(tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
-      -- Mark the cached state unreachable rather than only relabelling the
+      -- Mark the cached state unreachable rather than only relabeling the
       -- property. Left alone it keeps feeding the now-playing card and the
       -- conditionals, so Navigator shows the last sound and programming still
       -- answers "yes, playing" while the account has no cloud connection.

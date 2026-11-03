@@ -51,7 +51,7 @@ do
   T.eq("ring 1 is the lower order", (Favorites.byLabel(favs, "Rain (1)") or {}).id, 20)
 end
 
-T.section("Missing fields do not break labelling")
+T.section("Missing fields do not break labeling")
 do
   local favs = {
     { id = 10, name = "Ocean" },
