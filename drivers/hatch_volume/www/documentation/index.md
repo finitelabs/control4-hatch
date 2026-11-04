@@ -19,12 +19,8 @@ ______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
-<!-- #ifndef DRIVERCENTRAL -->
-
 > DISCLAIMER: This software is neither affiliated with nor endorsed by either
 > Control4 or Hatch.
-
-<!-- #endif -->
 
 The Hatch Volume driver presents one Hatch device's sound machine volume as a
 standard Control4 light (light_v2). Brightness is the volume percentage, and the

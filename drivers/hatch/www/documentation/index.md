@@ -19,12 +19,8 @@ ______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
-<!-- #ifndef DRIVERCENTRAL -->
-
 > DISCLAIMER: This software is neither affiliated with nor endorsed by either
 > Control4 or Hatch.
-
-<!-- #endif -->
 
 This suite brings Hatch sleep devices into Control4. It controls the sound
 machine and RGB night light on Hatch Rest+ and Restore devices through the Hatch

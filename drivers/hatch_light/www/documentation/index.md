@@ -19,12 +19,8 @@ ______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
-<!-- #ifndef DRIVERCENTRAL -->
-
 > DISCLAIMER: This software is neither affiliated with nor endorsed by either
 > Control4 or Hatch.
-
-<!-- #endif -->
 
 The Hatch Night Light driver presents one Hatch device's RGB night light as a
 standard Control4 light (light_v2). Turn the light on and off, set brightness,
