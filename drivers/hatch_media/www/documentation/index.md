@@ -19,12 +19,8 @@ ______________________________________________________________________
 
 # <span style="color:#13294C">Overview</span>
 
-<!-- #ifndef DRIVERCENTRAL -->
-
 > DISCLAIMER: This software is neither affiliated with nor endorsed by either
 > Control4 or Hatch.
-
-<!-- #endif -->
 
 The Hatch Sound Machine driver presents one Hatch device's sound machine as a
 Control4 media service with its own room audio endpoint. Browse and play the
