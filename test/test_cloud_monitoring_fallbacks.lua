@@ -206,6 +206,8 @@ do
   end
   Properties["Email"] = "user@example.test"
   Properties["Password"] = "test-password-not-real"
+  -- A product id keeps the license gate from stopping the account at its load.
+  require("lib.drivercentral").PRODUCT_ID = 999
   dofile(HERE .. "../drivers/hatch/driver.lua")
   T.eq(
     "the sounds and the favorites",

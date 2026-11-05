@@ -9,11 +9,7 @@
 -- Companions send ENTITY_COMMAND over the binding; the coordinator maps it to a
 -- shadow update. Shadow state is pushed back to companions as UPDATE_STATE.
 
---#ifdef DRIVERCENTRAL
-DC_PID = 0 -- TODO: Assign DriverCentral product ID
-DC_X = nil
-DC_FILENAME = "hatch.c4z"
---#else
+--#ifndef DRIVERCENTRAL
 DRIVER_GITHUB_REPO = "finitelabs/control4-hatch"
 --#endif
 
@@ -31,6 +27,7 @@ local Connection = require("hatch.connection")
 local Device = require("hatch.device")
 local updateSettings = require("lib.update-settings")
 --#ifdef DRIVERCENTRAL
+local drivercentral = require("lib.drivercentral")
 local supportCode = require("lib.support-code")
 local diagnostics = require("lib.diagnostics")
 --#endif
@@ -568,6 +565,15 @@ local function startConnection()
     connection:stop()
     connection = nil
   end
+  --#ifdef DRIVERCENTRAL
+  -- Without a license nothing reaches Hatch: no login, no MQTT connection, so no write either.
+  if not drivercentral:licensed() then
+    setConnectionStatus(drivercentral.UNLICENSED_STATUS)
+    UpdateProperty("Driver Status", drivercentral.UNLICENSED_STATUS)
+    pushDisconnect()
+    return
+  end
+  --#endif
   local email = Properties["Email"]
   local password = Properties["Password"]
   if IsEmpty(email) or IsEmpty(password) then
@@ -686,8 +692,7 @@ end
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
-  require("cloud-client-byte")
-  C4:AllowExecute(false)
+  drivercentral:startClient()
   --#else
   C4:AllowExecute(true)
   --#endif
@@ -737,6 +742,17 @@ function OnDriverLateInit()
 
   gInitialized = true
   UpdateProperty("Driver Status", "Ready")
+  --#ifdef DRIVERCENTRAL
+  drivercentral:startGate(function(licensed)
+    if licensed then
+      UpdateProperty("Driver Status", "Ready")
+    end
+    startConnection()
+  end)
+  if not drivercentral:licensed() then
+    return
+  end
+  --#endif
   startConnection()
 end
 

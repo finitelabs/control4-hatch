@@ -14,12 +14,6 @@
 -- the coordinator knows which side a change came from and declines to echo its
 -- own writes, which Programming has no way to express.
 
---#ifdef DRIVERCENTRAL
-DC_PID = 0 -- TODO: Assign DriverCentral product ID
-DC_X = nil
-DC_FILENAME = "hatch_volume.c4z"
---#endif
-
 require("lib.utils")
 require("drivers-common-public.global.handlers")
 require("drivers-common-public.global.lib")
@@ -31,6 +25,7 @@ local log = require("lib.logging")
 local constants = require("constants")
 local Favorites = require("hatch.favorites")
 --#ifdef DRIVERCENTRAL
+local drivercentral = require("lib.drivercentral")
 local updateSettings = require("lib.update-settings")
 local supportCode = require("lib.support-code")
 local diagnostics = require("lib.diagnostics")
@@ -363,8 +358,7 @@ ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
-  require("cloud-client-byte")
-  C4:AllowExecute(false)
+  drivercentral:startClient()
   --#else
   C4:AllowExecute(true)
   --#endif

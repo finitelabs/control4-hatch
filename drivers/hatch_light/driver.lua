@@ -10,12 +10,6 @@
 -- there is no hand-rolled color math here. Brightness is a 0-100 percentage on
 -- both sides, so it passes through unscaled.
 
---#ifdef DRIVERCENTRAL
-DC_PID = 0 -- TODO: Assign DriverCentral product ID
-DC_X = nil
-DC_FILENAME = "hatch_light.c4z"
---#endif
-
 require("lib.utils")
 require("drivers-common-public.global.handlers")
 require("drivers-common-public.global.lib")
@@ -25,6 +19,7 @@ JSON = require("JSON")
 
 local log = require("lib.logging")
 --#ifdef DRIVERCENTRAL
+local drivercentral = require("lib.drivercentral")
 local updateSettings = require("lib.update-settings")
 local supportCode = require("lib.support-code")
 local diagnostics = require("lib.diagnostics")
@@ -247,8 +242,7 @@ ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
 
 function OnDriverInit()
   --#ifdef DRIVERCENTRAL
-  require("cloud-client-byte")
-  C4:AllowExecute(false)
+  drivercentral:startClient()
   --#else
   C4:AllowExecute(true)
   --#endif
