@@ -165,7 +165,10 @@ documentation for setting it up.
 1. Select the newly added driver in the "System Design" tab. You will notice
    that the `Cloud Status` reflects the license state. If you have purchased a
    license it will show `License Activated`, otherwise `Trial Running` and
-   remaining trial duration.
+   remaining trial duration. After five minutes without an active license or
+   trial the driver disconnects from Hatch and
+   [`Driver Status`](#driver-status-read-only) shows `No active license`; it
+   connects again as soon as a license is active.
 
 1. You can refresh license status by selecting the "DriverCentral Cloud" driver
    in the "System Design" tab and perform the "Check Drivers" action.
