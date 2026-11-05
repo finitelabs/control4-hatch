@@ -8,7 +8,9 @@ Marketing images for the Hatch DriverCentral listing (no product number yet). Ea
 | `banners/launch-post-2400x1200` | 2400x1200 | Launch posts (c4forums, Reddit, Discord) |
 | `banners/facts-strip-2400x200` | 2400x200 | The first image in the listing's description: four facts in a row |
 
-`assets/` holds what the pages share: the Finite Labs logo, and Hatch's mark in white as `brand-mark.png`, exported from this repo's `resources/Driver Icons.sketch` (the art its icons use). Hatch publishes a media kit (the Download Media Kit link on https://www.hatch.co/about-us) but no rules for other companies; its terms (https://www.hatch.co/terms, section 4) reserve its trademarks.
+`assets/` holds what the pages share: the Finite Labs logo, `scene.js`, which draws the banners' art, and Hatch's logo as `brand-mark.png`: `logos/png/hatch-logo_navy.png` from Hatch's press kit (the Download Media Kit link on https://www.hatch.co/about-us), with only its transparent margin trimmed. The kit has no logo for dark backgrounds (its `hatch-logo_rev` files are the same navy art), so the banners show it on a light hub. Hatch publishes no rules for other companies; its terms (https://www.hatch.co/terms, section 4) reserve its trademarks.
+
+The banners' art is `rings`: sound pulses under a night sky, set on each banner's `<svg class="scene">`. The template's DriverCentral README lists the styles, and the headline, chips and subtitle shrink until they end clear of the art.
 
 ## Rendering
 
