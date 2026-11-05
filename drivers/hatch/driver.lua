@@ -74,15 +74,25 @@ end
 -- Shadow control
 --------------------------------------------------------------------------------
 
+--- @return boolean sent Whether the update went out: nothing does while the account is not connected.
 local function control(thing, desired)
-  if connection and desired then
-    connection:updateShadow(thing, desired)
-  end
+  return connection ~= nil and desired ~= nil and connection:updateShadow(thing, desired)
 end
 
 --------------------------------------------------------------------------------
 -- State push to companions
 --------------------------------------------------------------------------------
+
+--- While the account is not connected, a companion is told so instead of the last state, which it would show as live.
+--- @param binding table
+--- @return boolean told
+local function toldDisconnected(binding)
+  if connection and connection:isConnected() then
+    return false
+  end
+  SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
+  return true
+end
 
 --- Contentful serves full-size landscape art; resize on their CDN so neither the
 --- controller nor Navigator fetches a 1600px asset for a small square.
@@ -141,7 +151,7 @@ end
 
 local function pushMediaState(thing)
   local binding = bindings:getDynamicBinding(NS_MEDIA, thing)
-  if not binding then
+  if not binding or toldDisconnected(binding) then
     return
   end
   local state = stateByThing[thing] or {}
@@ -168,7 +178,7 @@ end
 
 local function pushLightState(thing)
   local binding = bindings:getDynamicBinding(NS_LIGHT, thing)
-  if not binding then
+  if not binding or toldDisconnected(binding) then
     return
   end
   local state = stateByThing[thing] or {}
@@ -190,7 +200,7 @@ end
 --- no way to express "this change came from the other side".
 local function pushVolumeState(thing)
   local binding = bindings:getDynamicBinding(NS_VOLUME, thing)
-  if not binding then
+  if not binding or toldDisconnected(binding) then
     return
   end
   local state = stateByThing[thing] or {}
@@ -290,7 +300,9 @@ local function handleVolumeCommand(thing, body)
     -- absent from the browsable catalog, so resuming it can do nothing at all.
     if body.favoriteId then
       -- A favorite applies its own volume, so the preset is deliberately ignored.
-      control(thing, Device.playFavorite(body.favoriteId))
+      if not control(thing, Device.playFavorite(body.favoriteId)) then
+        return
+      end
       -- Show the favorite's level now rather than waiting for the device to
       -- echo it, so the slider does not sit at the old value. The next shadow
       -- update confirms it.
