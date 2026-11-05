@@ -1,7 +1,8 @@
 -- The Hatch account's license gate in the DriverCentral build, driven by the real cloud client against a fake
 -- Cloud driver, with Hatch's API and MQTT connection stood in by recorders. Licensed, the account logs in and its
 -- companions' commands reach the device shadow; five minutes without a license stop the connection and tell the
--- companions; a license connects it again at once. With no product id yet the account is stopped from its load.
+-- companions, which are told so again when they ask and shown no level for a command; a license connects it again at
+-- once. With no product id yet the account is stopped from its load.
 --
 -- Run from the driver root:
 --   make test
@@ -16,14 +17,19 @@ local bindings = require("lib.bindings")
 
 local DRIVER = (debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./") .. "../drivers/hatch/driver.lua"
 
--- Hatch's cloud: each connection the account opens, and each shadow update it sends.
+-- Hatch's cloud: each connection the account opens, and each shadow update it sends. The account has one favorite.
 local starts, stops, shadows, last = 0, 0, {}, nil
+local FAVORITE = { id = 7, name = "Bedtime", steps = { { enabled = true, sound = { id = 3, v = 32768 } } } }
 package.loaded["hatch.api"] = {
   new = function()
     return setmetatable({}, {
-      __index = function()
+      __index = function(_, name)
         return function()
-          return deferred.new()
+          local d = deferred.new()
+          if name == "fetchRoutines" then
+            d:resolve({ FAVORITE })
+          end
+          return d
         end
       end,
     })
@@ -33,14 +39,23 @@ package.loaded["hatch.connection"] = {
   new = function(_, opts)
     last = {
       opts = opts,
+      up = false,
       start = function()
         starts = starts + 1
       end,
-      stop = function()
+      stop = function(self)
         stops = stops + 1
+        self.up = false
       end,
-      updateShadow = function(_, thing, desired)
+      isConnected = function(self)
+        return self.up
+      end,
+      updateShadow = function(self, thing, desired)
+        if not self.up then
+          return false
+        end
         shadows[#shadows + 1] = { thing = thing, desired = desired }
+        return true
       end,
     }
     return last
@@ -62,11 +77,14 @@ end
 function C4:UpdateProperty(name, value)
   Properties[name] = value
 end
-local disconnects = 0
-function C4:SendToProxy(_, command)
+local disconnects, states, lastTo = 0, 0, {}
+function C4:SendToProxy(id, command)
   if command == "UPDATE_DISCONNECT" then
     disconnects = disconnects + 1
+  elseif command == "UPDATE_STATE" then
+    states = states + 1
   end
+  lastTo[id] = command
 end
 
 --- Runs `path` as the DriverCentral build compiles it: a line its directives leave out is blanked.
@@ -119,6 +137,7 @@ local function load(answer, pid)
   OnDriverInit()
   OnDriverLateInit("DIT_ADDED")
   if last then
+    last.up = true
     last.opts.onConnected({ { thingName = "thing-1", name = "Nursery", product = "restPlus" } })
   end
 end
@@ -166,6 +185,12 @@ do
   OnPropertyChanged("Password")
   T.eq("a command, Reconnect and a credential edit open nothing", starts, 1)
   T.eq("and send no shadow update", #shadows, n)
+  local volume = bindings:getDynamicBinding("HATCH_VOLUME", "thing-1").bindingId
+  ReceivedFromProxy(volume, "REFRESH_STATE", {})
+  T.eq("a companion asking for its state is told the account is disconnected", lastTo[volume], "UPDATE_DISCONNECT")
+  local pushed = states
+  ReceivedFromProxy(volume, "ENTITY_COMMAND", { body = SerializeSafe({ command = "on", favoriteId = FAVORITE.id }) })
+  T.eq("and a Volume On that plays a favorite shows it no level", states, pushed)
 end
 
 T.section("A license back connects the account again at once")
