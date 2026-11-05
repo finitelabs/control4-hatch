@@ -254,6 +254,11 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   released the room. It also rebuilds its now-playing card after such a reload
   instead of leaving a session that reads as selected but cannot be controlled.
 
+- Fixed the Hatch Sound Machine, Hatch Night Light and Hatch Volume drivers
+  showing the account connected with its last state after it lost its connection
+  to Hatch, when one was reloaded or bound, or when Hatch Volume was turned on
+  to play a favorite. They now stay offline until it reconnects.
+
 - Fixed an automatic update sometimes leaving companion drivers on the previous
   version until the next update, which could make them stop responding in the
   meantime.
