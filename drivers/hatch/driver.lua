@@ -566,7 +566,7 @@ local function startConnection()
     connection = nil
   end
   --#ifdef DRIVERCENTRAL
-  -- Without a license nothing reaches Hatch: no login, no MQTT connection, so no write either.
+  -- Without a license nothing controls Hatch: no login, no MQTT connection, so no write either.
   if not drivercentral:licensed() then
     setConnectionStatus(drivercentral.UNLICENSED_STATUS)
     UpdateProperty("Driver Status", drivercentral.UNLICENSED_STATUS)
