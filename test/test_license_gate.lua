@@ -10,6 +10,7 @@
 --   ./test/run_test.sh test_license_gate.lua
 
 require("c4_shim")
+require("c4_local")
 local T = require("testlib")
 local cloud = require("dc_cloud")
 local deferred = require("deferred")
@@ -87,26 +88,6 @@ function C4:SendToProxy(id, command)
   lastTo[id] = command
 end
 
---- Runs `path` as the DriverCentral build compiles it: a line its directives leave out is blanked.
-local function dofileDriverCentral(path)
-  local f = assert(io.open(path))
-  local lines, stack, including = {}, {}, true
-  for line in f:lines() do
-    local ifdef, name = line:match("^%s*%-%-%s*#(ifn?def)%s+([%w_]+)%s*$")
-    if ifdef then
-      stack[#stack + 1] = including
-      including = including and (name == "DRIVERCENTRAL") == (ifdef == "ifdef")
-    elseif line:match("^%s*%-%-%s*#else%s*$") then
-      including = stack[#stack] and not including
-    elseif line:match("^%s*%-%-%s*#endif%s*$") then
-      including = table.remove(stack)
-    end
-    lines[#lines + 1] = including and line or ""
-  end
-  f:close()
-  assert(load(table.concat(lines, "\n"), "@" .. path))()
-end
-
 local gate
 
 --- A load of the account driver with a fresh client and gate; a licensed one connects and finds one device.
@@ -131,7 +112,7 @@ local function load(answer, pid)
     ["Devices"] = "",
   }
   DC_OnDriverStatus = nil
-  dofileDriverCentral(DRIVER)
+  ShimDofileBuild(DRIVER, "drivercentral")
   gate = require("lib.drivercentral")
   gate.PRODUCT_ID = pid or 999
   OnDriverInit()

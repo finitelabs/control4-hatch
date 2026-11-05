@@ -8,6 +8,7 @@
 --   ./test/run_test.sh test_companions_offline.lua
 
 require("c4_shim")
+require("c4_local")
 local T = require("testlib")
 local deferred = require("deferred")
 local bindings = require("lib.bindings")
@@ -71,33 +72,13 @@ function C4:SendToProxy(id, command, params)
   told[#told + 1] = { id = id, command = command, params = params or {} }
 end
 
---- Runs `path` as the OSS build compiles it: a line its directives leave out is blanked.
-local function dofileOss(path)
-  local f = assert(io.open(path))
-  local lines, stack, including = {}, {}, true
-  for line in f:lines() do
-    local ifdef, name = line:match("^%s*%-%-%s*#(ifn?def)%s+([%w_]+)%s*$")
-    if ifdef then
-      stack[#stack + 1] = including
-      including = including and (name == "DRIVERCENTRAL") ~= (ifdef == "ifdef")
-    elseif line:match("^%s*%-%-%s*#else%s*$") then
-      including = stack[#stack] and not including
-    elseif line:match("^%s*%-%-%s*#endif%s*$") then
-      including = table.remove(stack)
-    end
-    lines[#lines + 1] = including and line or ""
-  end
-  f:close()
-  assert(load(table.concat(lines, "\n"), "@" .. path))()
-end
-
 Properties["Email"] = "user@example.test"
 Properties["Password"] = "test-password-not-real"
 Properties["Automatic Updates"] = "Off"
 Properties["Connection Status"] = ""
 Properties["Driver Status"] = ""
 Properties["Devices"] = ""
-dofileOss(HERE .. "../drivers/hatch/driver.lua")
+ShimDofileBuild(HERE .. "../drivers/hatch/driver.lua", "oss")
 OnDriverInit()
 OnDriverLateInit("DIT_ADDED")
 live.onShadow("thing-1", SHADOW)
