@@ -800,8 +800,6 @@ end
 
 function OPC.Log_Level(v)
   log:setLogLevel(v)
-  local ultra = log:getLogLevel() >= 6 and log:isPrintEnabled()
-  DEBUGPRINT, DEBUG_TIMER, DEBUG_RFN, DEBUG_URL, DEBUG_WEBSOCKET = ultra, ultra, ultra, ultra, ultra
 end
 
 function OPC.Email(_v)
