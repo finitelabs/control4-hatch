@@ -374,8 +374,9 @@ function OnDriverLateInit()
   if not CheckMinimumVersion("Driver Status") then
     return
   end
+  -- The router runs each handler in its own xpcall and reports its error, so the rest still run.
   for p, _ in pairs(Properties) do
-    pcall(OnPropertyChanged, p)
+    OnPropertyChanged(p)
   end
   gInitialized = true
   UpdateProperty("Driver Status", "Waiting for coordinator")
