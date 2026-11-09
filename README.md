@@ -248,47 +248,37 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
-- Fixed a color set while the Hatch Night Light was off turning the light on. It
-  now stays off, and its next turn-on comes on in that color.
-
-- Fixed the Hatch Sound Machine sometimes turning itself off shortly after a
-  driver update or account reconnect while it was playing, where a stale
-  playback update arriving as the connection resettled re-claimed and then
-  released the room. It also rebuilds its now-playing card after such a reload
-  instead of leaving a session that reads as selected but cannot be controlled.
-
-- Fixed the Hatch Sound Machine, Hatch Night Light and Hatch Volume drivers
-  showing the account connected with its last state after it lost its connection
-  to Hatch, when one was reloaded or bound, or when Hatch Volume was turned on
-  to play a favorite. They now stay offline until it reconnects.
-
-- Fixed an automatic update sometimes leaving companion drivers on the previous
-  version until the next update, which could make them stop responding in the
-  meantime.
+- Fixed a color set while the Hatch Night Light was off turning the light on,
+  and its next turn-on now comes on in that color.
+- Fixed the Hatch Sound Machine sometimes turning itself off, or leaving a
+  now-playing card that could not be controlled, after a driver update or
+  account reconnect while it was playing.
+- Fixed the Hatch companion drivers sometimes showing the account as connected
+  after it lost its connection to Hatch.
+- Fixed an automatic update sometimes leaving the companion drivers on the
+  previous version, where they could stop responding until the next update.
 
 ### Changed
 
-- Changed the Hatch Night Light and Hatch Volume to show off while the Hatch
-  driver has lost its connection to Hatch, and their state again once it
-  reconnects. When the Hatch driver stops the connection itself, they keep their
-  state.
+- Changed the Hatch Night Light and Hatch Volume to show off while the
+  connection to Hatch is lost, and their state again once it reconnects.
 
 ## v20260816 - 2026-08-16
 
 ### Added
 
-- Added the Hatch Volume driver, presenting a device's volume as a dimmer for
-  integrations that only understand lights, such as Apple Home.
-- Added a Turn On Plays property to Hatch Volume, choosing what turning it on
-  starts. A favorite starts at its own volume, a sound at the Default On level.
+- Added the Hatch Volume driver, which presents a device's volume as a dimmer
+  for integrations that only control lights.
+- Added a Turn On Plays property to Hatch Volume, which picks the sound or
+  favorite that turning it on plays.
 - Added Started Playing and Stopped Playing events to the Hatch Sound Machine,
   which also fire for playback started from the Hatch app or the device itself.
 - Added Programming conditionals to the Hatch Sound Machine for whether it is
   playing, and for which sound or favorite is playing.
 - Sounds and favorites now refresh on their own when they change in the Hatch
   app, with no driver reload.
-- The Hatch Sound Machine now behaves as a normal room source: starting it takes
-  the room, and selecting another source stops it.
+- The Hatch Sound Machine now behaves as a normal room source, so starting it
+  takes the room and selecting another source stops it.
 
 ### Fixed
 
@@ -296,7 +286,7 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   its companion drivers as disconnected, and a deliberate stop being reported as
   a disconnect.
 - Fixed the Hatch Night Light never reporting itself online, which could leave
-  it greyed out and unusable in Navigator.
+  it grayed out and unusable in Navigator.
 - Fixed stopping the sound machine turning off the whole room, which ended a
   video session in rooms with a TV.
 - Fixed a second room off being sent behind the one you pressed, which could
@@ -309,31 +299,25 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   ring number, matching the Hatch app.
 - Fixed the sound machine reporting its volume continuously rather than only
   when it changed, which made Programming watching the volume run constantly.
-- Fixed the companion drivers showing their last known state as though it were
-  live after the account driver lost its cloud connection. The sound machine's
-  now-playing card and Programming conditionals also went stale, and the night
-  light and volume dimmer reported themselves reachable before the account
-  driver had found the device.
+- Fixed the companion drivers showing their last known state as live, and
+  reporting themselves reachable, while the account driver had no cloud
+  connection or had not yet found the device.
 
 ## v20260806 - 2026-08-06
 
 ### Added
 
-- **Hatch** account driver. Signs in to the Hatch cloud, discovers the devices
-  on the account, and holds a single AWS IoT connection (MQTT over WebSocket to
-  the device shadows) shared by every device and room. Reconnects on its own
-  after a network drop or controller restart, reusing the member token.
-- **Hatch Sound Machine** companion. Presents a device's sound machine as a
-  Control4 media service with its own room audio endpoint, so no external
-  amplifier is needed. Browse and play sounds and favorites, now-playing with
-  cover art, volume and mute in the standard listening session.
-- **Hatch Night Light** companion. Presents a device's RGB night light as a
-  standard Control4 light, with on/off, brightness, full color and Advanced
-  Lighting Scenes support.
+- **Hatch** account driver, which signs in to the Hatch cloud, finds the devices
+  on the account and shares one connection among them, reconnecting on its own
+  after a network drop or controller restart.
+- **Hatch Sound Machine** companion, which plays a device's sounds and favorites
+  as a Control4 media source in its room with no amplifier needed, with now
+  playing, cover art, volume and mute.
+- **Hatch Night Light** companion, which presents a device's night light as a
+  standard Control4 light with on and off, brightness, full color and Advanced
+  Lighting Scenes.
 - Play Sound, Play Favorite and Stop programming commands, with sound and
   favorite lists populated from the device's own catalog.
-- Cover art on both the now-playing card and the browse lists, resolved per
-  sound and shared with favorites through the sound their routine plays.
-- Support for Rest+ (riot, riotPlus) and Restore (restoreV5). Restore sound
-  content is read from Hatch's Contentful CMS, which the REST content endpoint
-  does not serve.
+- Cover art on the now-playing card and in the browse lists, for sounds and
+  favorites.
+- Support for Rest+ and Restore, including Restore's own sounds.
