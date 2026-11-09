@@ -124,7 +124,8 @@
     <!--
       Deprecated in 3.3.2, but Composer's test panel still gates on them: the
       On/Off buttons, the Ramp button, and the Default On preset editor. The
-      volume has no ramp, and no Default On of its own.
+      volume has no ramp, and takes no SET_PRESET_LEVEL: it reads the proxy's
+      On preset level itself when it starts a sound.
     -->
     <on_off>True</on_off>
     <ramp_level>False</ramp_level>
@@ -145,7 +146,7 @@
     <advanced_scene_support>False</advanced_scene_support>
     <reduced_als_support>False</reduced_als_support>
     <load_group_support>False</load_group_support>
-    <!-- No on mode: an On comes on as the device itself does. -->
+    <!-- No on mode: a plain sound starts at the proxy's On preset level, a favorite at its own volume. -->
     <brightness_on_mode_preset>False</brightness_on_mode_preset>
     <brightness_on_mode_previous>False</brightness_on_mode_previous>
     <color_on_mode_fade>False</color_on_mode_fade>
