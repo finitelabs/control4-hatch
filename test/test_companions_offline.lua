@@ -95,7 +95,7 @@ local function toldTo(ns, fn)
   for i = from + 1, #told do
     local t = told[i]
     if t.id == binding(ns) and t.command == "UPDATE_DISCONNECT" then
-      out[#out + 1] = "disconnected"
+      out[#out + 1] = t.params and t.params.suspended and "disconnected (suspended)" or "disconnected"
     elseif t.id == binding(ns) and t.command == "UPDATE_STATE" then
       local state = DeserializeSafe(t.params.state) or {}
       out[#out + 1] = string.format(

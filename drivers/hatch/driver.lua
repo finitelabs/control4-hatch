@@ -84,6 +84,10 @@ end
 -- State push to companions
 --------------------------------------------------------------------------------
 
+--- Whether the account is not connected for a reason of its own, or has not connected yet since a load, so the devices
+--- are as they were (UPDATE_DISCONNECT suspended), rather than because its link to Hatch was lost.
+local gSuspended = true
+
 --- While the account is not connected, a companion is told so instead of the last state, which it would show as live.
 --- @param binding table
 --- @return boolean told
@@ -91,7 +95,7 @@ local function toldDisconnected(binding)
   if connection and connection:isConnected() then
     return false
   end
-  SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
+  SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", { suspended = gSuspended or nil }, "NOTIFY")
   return true
 end
 
@@ -232,7 +236,7 @@ local function pushDisconnect()
   for _, ns in ipairs({ NS_MEDIA, NS_LIGHT, NS_VOLUME }) do
     for _, binding in pairs(bindings:getDynamicBindings(ns)) do
       if binding.bindingId then
-        SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
+        SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", { suspended = gSuspended or nil }, "NOTIFY")
       end
     end
   end
@@ -583,6 +587,7 @@ local function startConnection()
   if not drivercentral:licensed() then
     setConnectionStatus(drivercentral.UNLICENSED_STATUS)
     UpdateProperty("Driver Status", drivercentral.UNLICENSED_STATUS)
+    gSuspended = true
     pushDisconnect()
     return
   end
@@ -594,6 +599,7 @@ local function startConnection()
     -- replaced socket), and no new connection is coming, so say so explicitly or
     -- the companions keep reporting the last live state forever.
     setConnectionStatus("Enter account email and password")
+    gSuspended = true
     pushDisconnect()
     return
   end
@@ -652,6 +658,7 @@ local function startConnection()
     end,
     onDisconnected = function()
       setConnectionStatus("Disconnected (retrying)")
+      gSuspended = false
       pushDisconnect()
     end,
   })

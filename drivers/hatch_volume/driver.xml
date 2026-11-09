@@ -119,10 +119,16 @@
     <dimmer>True</dimmer>
     <set_level>True</set_level>
     <supports_target>True</supports_target>
+    <!-- The volume changes at once: no fade to stop, and no color rate to set. -->
     <supports_brightness_stop>False</supports_brightness_stop>
+    <!--
+      Deprecated in 3.3.2, but Composer's test panel still gates on them: the
+      On/Off buttons, the Ramp button, and the Default On preset editor.
+    -->
     <on_off>True</on_off>
     <ramp_level>True</ramp_level>
     <supports_default_on>True</supports_default_on>
+    <!-- True would mean the light's ramp rate cannot be changed. -->
     <has_fixed_ramp_rate>False</has_fixed_ramp_rate>
     <fixed_ramp_rate>0</fixed_ramp_rate>
     <hide_proxy_properties>False</hide_proxy_properties>
@@ -151,7 +157,7 @@
     <supports_color_stop>False</supports_color_stop>
     <color_correlated_temperature_min>2000</color_correlated_temperature_min>
     <color_correlated_temperature_max>6500</color_correlated_temperature_max>
-    <color_rate_behavior>1</color_rate_behavior>
+    <color_rate_behavior>0</color_rate_behavior>
     <color_rate_min>0</color_rate_min>
     <color_rate_max>65535</color_rate_max>
   </capabilities>

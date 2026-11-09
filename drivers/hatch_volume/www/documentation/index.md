@@ -87,7 +87,8 @@ the volume and the dimmer stay in step without fighting each other.
 - Volume can be staged while stopped, since the Hatch accepts a volume change
   without starting playback
 - Real-time two-way synchronization with the Hatch device through the account
-  driver, with no Control4 programming required
+  driver, with no Control4 programming required; while the account has lost its
+  connection to Hatch, the volume shows off
 
 # <span style="color:#13294C">Compatibility</span>
 

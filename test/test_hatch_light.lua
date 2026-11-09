@@ -254,4 +254,106 @@ for _, on in ipairs({
   T.eq(on[1] .. ", then a preset's color: it goes out", #sent(), 1)
 end
 
+--- What the proxy was told since the mark, in order, as "online=<state>", "level=<n>[/<preset>]" and
+--- "color=<x>[/<id>.<origin>]".
+local function toldInOrder()
+  local out = {}
+  for _, t in ipairs(told) do
+    local p = t.params
+    if t.id == PROXY and t.command == "ONLINE_CHANGED" then
+      out[#out + 1] = "online=" .. tostring(p.STATE)
+    elseif t.id == PROXY and t.command == "LIGHT_BRIGHTNESS_CHANGED" then
+      out[#out + 1] = "level="
+        .. tostring(p.LIGHT_BRIGHTNESS_CURRENT)
+        .. (p.LIGHT_BRIGHTNESS_CURRENT_PRESET_ID and ("/" .. p.LIGHT_BRIGHTNESS_CURRENT_PRESET_ID) or "")
+    elseif t.id == PROXY and t.command == "LIGHT_COLOR_CHANGED" then
+      out[#out + 1] = "color="
+        .. tostring(p.LIGHT_COLOR_CURRENT_X)
+        .. (
+          p.LIGHT_COLOR_CURRENT_PRESET_ID
+            and ("/" .. p.LIGHT_COLOR_CURRENT_PRESET_ID .. "." .. p.LIGHT_COLOR_CURRENT_PRESET_ORIGIN)
+          or ""
+        )
+    end
+  end
+  return out
+end
+local GREEN_PRESET = {
+  LIGHT_COLOR_TARGET_X = 0.2,
+  LIGHT_COLOR_TARGET_Y = 0.6,
+  LIGHT_COLOR_TARGET_MODE = 0,
+  LIGHT_COLOR_TARGET_PRESET_ID = 5,
+  LIGHT_COLOR_TARGET_PRESET_ORIGIN = 2,
+}
+
+T.section("a color right after an Off, before the light reports off, waits for the next on")
+report(true, { 51, 153, 0 })
+mark()
+proxy("OFF")
+proxy("SET_COLOR_TARGET", GREEN)
+T.eq("the Off goes out and the color is kept, not sent", sent(), { { command = "off" } })
+report(false)
+mark()
+proxy("ON")
+T.eq("the next on comes on in it", colorOf(sent()[1]), GREEN_SENT)
+report(true, { 51, 153, 0 })
+mark()
+proxy("SET_LEVEL", { LEVEL = 0 })
+proxy("SET_COLOR_TARGET", GREEN)
+T.eq("a level of 0, then a color: the same", sent(), { { command = "setBrightness", brightness = 0 } })
+report(false)
+
+T.section("a preset's color is told with its id and origin while the light shows it")
+mark()
+proxy("SET_COLOR_TARGET", GREEN_PRESET)
+T.eq("set while off: told at once in its preset", toldInOrder(), { "color=0.2/5.2" })
+mark()
+proxy("ON")
+report(true, { 51, 153, 0 })
+T.eq("and once the light shows it", toldInOrder()[3], "color=0.2/5.2")
+mark()
+proxy("SET_COLOR_TARGET", GREEN_PRESET)
+report(true, { 51, 153, 0 })
+T.eq("set while on: told in its preset once the light shows it", toldInOrder()[3], "color=0.2/5.2")
+proxy("OFF")
+report(false)
+mark()
+proxy("ON")
+report(true, { 51, 153, 0 })
+T.eq("off, then on again in the same color: still told in its preset", toldInOrder()[3], "color=0.2/5.2")
+mark()
+report(true, { 255, 0, 0 })
+T.eq("a report of another color names no preset", toldInOrder()[3], "color=1")
+
+T.section("a level's brightness preset is told with the level, until another level command")
+mark()
+proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 60, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 3 })
+report(true, { 255, 0, 0 })
+T.eq("a level naming a preset: told in it", toldInOrder()[2], "level=100/3")
+mark()
+proxy("SET_LEVEL", { LEVEL = 40 })
+report(true, { 255, 0, 0 })
+T.eq("a level naming none: told in none", toldInOrder()[2], "level=100")
+
+T.section("a rebind forgets the device the light was bound to")
+report(false)
+proxy("SET_COLOR_TARGET", GREEN)
+mark()
+OBC[COORD](COORD, "HATCH_LIGHT", true)
+T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "online=false" })
+report(false)
+mark()
+proxy("ON")
+T.eq("and a color set before the rebind is not the next on's", colorOf(sent()[1]), nil)
+report(true, { 255, 255, 255 })
+
+T.section("a lost link to Hatch reads off; the account's own stop leaves the light as it was")
+mark()
+ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
+T.eq("a lost link: offline, then off", toldInOrder(), { "online=false", "level=0" })
+report(true, { 255, 255, 255 })
+mark()
+ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
+T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
+
 T.finish()

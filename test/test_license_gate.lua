@@ -78,10 +78,11 @@ end
 function C4:UpdateProperty(name, value)
   Properties[name] = value
 end
-local disconnects, states, lastTo = 0, 0, {}
-function C4:SendToProxy(id, command)
+local disconnects, states, lastTo, lastSuspended = 0, 0, {}, {}
+function C4:SendToProxy(id, command, params)
   if command == "UPDATE_DISCONNECT" then
     disconnects = disconnects + 1
+    lastSuspended[id] = (params or {}).suspended
   elseif command == "UPDATE_STATE" then
     states = states + 1
   end
@@ -169,6 +170,7 @@ do
   local volume = bindings:getDynamicBinding("HATCH_VOLUME", "thing-1").bindingId
   ReceivedFromProxy(volume, "REFRESH_STATE", {})
   T.eq("a companion asking for its state is told the account is disconnected", lastTo[volume], "UPDATE_DISCONNECT")
+  T.eq("by its own stop, so the device is as it was", lastSuspended[volume], true)
   local pushed = states
   ReceivedFromProxy(volume, "ENTITY_COMMAND", { body = SerializeSafe({ command = "on", favoriteId = FAVORITE.id }) })
   T.eq("and a Volume On that plays a favorite shows it no level", states, pushed)

@@ -266,6 +266,13 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   version until the next update, which could make them stop responding in the
   meantime.
 
+### Changed
+
+- Changed the Hatch Night Light and Hatch Volume to show off while the Hatch
+  driver has lost its connection to Hatch, and their state again once it
+  reconnects. When the Hatch driver stops the connection itself, they keep their
+  state.
+
 ## v20260816 - 2026-08-16
 
 ### Added

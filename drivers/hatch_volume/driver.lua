@@ -56,6 +56,9 @@ local volumeState = {
   brightnessPct = 0,
 }
 
+-- The brightness preset the last SET_BRIGHTNESS_TARGET named, told with the level; any other level command clears it.
+local brightnessPresetId = nil
+
 --------------------------------------------------------------------------------
 -- Coordinator link
 --------------------------------------------------------------------------------
@@ -71,6 +74,7 @@ end
 local function notifyBrightness(pct)
   SendToProxy(PROXY_BINDING, "LIGHT_BRIGHTNESS_CHANGED", {
     LIGHT_BRIGHTNESS_CURRENT = tonumber(pct) or 0,
+    LIGHT_BRIGHTNESS_CURRENT_PRESET_ID = brightnessPresetId,
   }, "NOTIFY")
 end
 
@@ -220,6 +224,7 @@ function RFP.ON(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
+  brightnessPresetId = nil
   local body = turnOnTarget() or {}
   body.command = "on"
   -- A sound carries no volume of its own, so start it at the dimmer's preset.
@@ -240,6 +245,7 @@ function RFP.OFF(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
+  brightnessPresetId = nil
   entityCommand({ command = "off" })
 end
 
@@ -255,6 +261,7 @@ function RFP.TOGGLE(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
+  brightnessPresetId = nil
   if volumeState.on then
     entityCommand({ command = "off" })
   else
@@ -305,14 +312,20 @@ function RFP.GET_CONNECTED_STATE(idBinding)
 end
 
 function RFP.SET_LEVEL(idBinding, _strCommand, tParams)
+  brightnessPresetId = nil
   setBrightness(idBinding, Select(tParams, "LEVEL"))
 end
 
 function RFP.SET_BRIGHTNESS_TARGET(idBinding, _strCommand, tParams)
+  if idBinding ~= PROXY_BINDING then
+    return
+  end
+  brightnessPresetId = tointeger(Select(tParams, "LIGHT_BRIGHTNESS_TARGET_PRESET_ID"))
   setBrightness(idBinding, Select(tParams, "LIGHT_BRIGHTNESS_TARGET"))
 end
 
 function RFP.RAMP_TO_LEVEL(idBinding, _strCommand, tParams)
+  brightnessPresetId = nil
   setBrightness(idBinding, Select(tParams, "LEVEL"))
 end
 
@@ -330,6 +343,13 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
       volumeState.online = false
       notifyOnline(false)
+      -- A lost link to Hatch reads off. The account's own stop leaves the volume as it was, and its next report tells
+      -- it.
+      if not toboolean(Select(tParams, "suspended")) then
+        volumeState.on = false
+        brightnessPresetId = nil
+        notifyBrightness(0)
+      end
       UpdateProperty("Driver Status", "Coordinator offline")
     end
     return
@@ -393,7 +413,13 @@ OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
 --- Announce reachability on bind and retract it on unbind, per light_v2.
 OBC = OBC or {}
 OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)
-  notifyOnline(bIsBound and volumeState.online)
+  -- Forget the device: the one bound next tells its own state.
+  volumeState.online, volumeState.on, volumeState.brightnessPct = false, false, 0
+  brightnessPresetId = nil
+  -- At a controller start this runs before late init, which tells offline itself.
+  if gInitialized then
+    notifyOnline(false)
+  end
   if bIsBound then
     SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
   end
