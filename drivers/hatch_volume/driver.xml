@@ -123,11 +123,13 @@
     <supports_brightness_stop>False</supports_brightness_stop>
     <!--
       Deprecated in 3.3.2, but Composer's test panel still gates on them: the
-      On/Off buttons, the Ramp button, and the Default On preset editor.
+      On/Off buttons, the Ramp button, and the Default On preset editor. The
+      volume has no ramp, and takes no SET_PRESET_LEVEL: it reads the proxy's
+      On preset level itself when it starts a sound.
     -->
     <on_off>True</on_off>
-    <ramp_level>True</ramp_level>
-    <supports_default_on>True</supports_default_on>
+    <ramp_level>False</ramp_level>
+    <supports_default_on>False</supports_default_on>
     <!-- True would mean the light's ramp rate cannot be changed. -->
     <has_fixed_ramp_rate>False</has_fixed_ramp_rate>
     <fixed_ramp_rate>0</fixed_ramp_rate>
@@ -140,10 +142,13 @@
     <has_button_events>False</has_button_events>
     <supports_broadcast_scenes>False</supports_broadcast_scenes>
     <supports_multichannel_scenes>False</supports_multichannel_scenes>
-    <advanced_scene_support>True</advanced_scene_support>
+    <!-- It takes no scene commands of its own, and runs no scene either. -->
+    <advanced_scene_support>False</advanced_scene_support>
+    <reduced_als_support>False</reduced_als_support>
     <load_group_support>False</load_group_support>
-    <brightness_on_mode_preset>True</brightness_on_mode_preset>
-    <brightness_on_mode_previous>True</brightness_on_mode_previous>
+    <!-- No on mode: a plain sound starts at the proxy's On preset level, a favorite at its own volume. -->
+    <brightness_on_mode_preset>False</brightness_on_mode_preset>
+    <brightness_on_mode_previous>False</brightness_on_mode_previous>
     <color_on_mode_fade>False</color_on_mode_fade>
     <color_on_mode_preset>False</color_on_mode_preset>
     <color_on_mode_previous>False</color_on_mode_previous>

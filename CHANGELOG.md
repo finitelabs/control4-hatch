@@ -56,6 +56,11 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   project, so the drivers update together.
   <!-- #endif -->
 
+### Removed
+
+- Removed the scene, on mode, Default On and ramp options from the Hatch Night
+  Light and Hatch Volume, since neither driver acted on them.
+
 ## v20260816 - 2026-08-16
 
 ### Added

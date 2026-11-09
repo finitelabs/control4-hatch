@@ -356,4 +356,39 @@ mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
 T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
 
+T.section("driver.xml declares only what the night light does")
+do
+  local f = assert(io.open(HERE .. "../drivers/hatch_light/driver.xml"))
+  local caps = f:read("*a"):match("<capabilities>(.-)</capabilities>")
+  f:close()
+  local function cap(name)
+    return caps:match("<" .. name .. ">(.-)</" .. name .. ">")
+  end
+  for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off", "supports_color" }) do
+    T.eq(name .. " is True", cap(name), "True")
+  end
+  for _, name in ipairs({
+    "supports_default_on",
+    "ramp_level",
+    "advanced_scene_support",
+    "reduced_als_support",
+    "brightness_on_mode_preset",
+    "brightness_on_mode_previous",
+    "color_on_mode_fade",
+    "color_on_mode_preset",
+    "color_on_mode_previous",
+    "supports_brightness_stop",
+    "supports_color_stop",
+    "click_rates",
+    "hold_rates",
+    "has_leds",
+    "has_button_events",
+  }) do
+    T.eq(name .. " is False", cap(name), "False")
+  end
+end
+
+T.section("every capability driver.xml declares has the proxy commands it brings")
+require("light_capabilities").checkHandlers(T, HERE .. "../drivers/hatch_light/driver.xml")
+
 T.finish()
