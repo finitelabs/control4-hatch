@@ -73,6 +73,8 @@ in a project.
   programming
 - Color handled with Control4's built-in color model, so it matches the rest of
   the lighting in a project
+- A color set while the light is off leaves it off, and the light comes on in
+  that color at its next turn-on
 - Advanced Lighting Scenes participation
 - Real-time state synchronization with the Hatch device through the account
   driver
