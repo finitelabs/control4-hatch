@@ -48,7 +48,7 @@ local lightState = {
 }
 
 -- A color Control4 set while the light was off { x, y, red, green, blue }: the night light cannot take a color without
--- lighting, so it is kept, and the next on comes on in it, as Control4's own lights do. Cleared once the light is on.
+-- lighting, so it is kept, and the next on comes on in it. Cleared once the light is on.
 local nextOnColor = nil
 -- An on was sent and the light has not yet reported it: a color sent now is for the light on its way on.
 local onSent = false
@@ -134,7 +134,8 @@ local function turnOn(body)
   if nextOnColor then
     body.red, body.green, body.blue = nextOnColor.red, nextOnColor.green, nextOnColor.blue
   end
-  onSent = onSent or not lightState.on
+  -- An On the account cannot send never reaches the light.
+  onSent = onSent or (lightState.online and not lightState.on)
   entityCommand(body)
 end
 
@@ -259,6 +260,7 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
       applyState(tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
       lightState.online = false
+      onSent = false
       notifyOnline(false)
       UpdateProperty("Driver Status", "Coordinator offline")
     end

@@ -1,6 +1,6 @@
 -- The Hatch Night Light and a color set while it is off. The night light cannot take a color without lighting, so the
--- driver keeps it, as Control4's own lights do: it is told at once, the next on or level comes on in it, and it is
--- dropped once the light reports it is on.
+-- driver keeps it: it is told at once, the next on or level comes on in it, and it is dropped once the light reports
+-- it is on.
 --
 -- Run from the driver root:
 --   make test
@@ -156,5 +156,20 @@ report(false)
 mark()
 proxy("ON")
 T.eq("the on after it carries no kept color", colorOf(sent()[1]), nil)
+
+T.section("an On that cannot reach the light leaves a color set while off kept")
+proxy("OFF")
+report(false)
+proxy("ON")
+ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
+report(false)
+mark()
+proxy("SET_COLOR_TARGET", GREEN)
+T.eq("an On, then the account disconnected: the color is kept, not sent", sent(), {})
+ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
+proxy("ON")
+mark()
+proxy("SET_COLOR_TARGET", GREEN)
+T.eq("an On while disconnected: the color is kept, not sent", sent(), {})
 
 T.finish()
