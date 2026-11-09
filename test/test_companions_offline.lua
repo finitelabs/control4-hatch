@@ -43,10 +43,14 @@ local published = 0
 Connection.sendMqtt = function()
   published = published + 1
 end
+-- Whether a connection the driver starts comes up at once.
+local connectOnStart = true
 Connection.start = function(self)
   live = self
-  self.stopped, self.connected = false, true
-  self.onConnected(DEVICES)
+  self.stopped, self.connected = false, connectOnStart
+  if connectOnStart then
+    self.onConnected(DEVICES)
+  end
 end
 Connection.stop = function(self)
   self.stopped, self.connected = true, false
@@ -95,7 +99,7 @@ local function toldTo(ns, fn)
   for i = from + 1, #told do
     local t = told[i]
     if t.id == binding(ns) and t.command == "UPDATE_DISCONNECT" then
-      out[#out + 1] = "disconnected"
+      out[#out + 1] = t.params and t.params.suspended and "disconnected (suspended)" or "disconnected"
     elseif t.id == binding(ns) and t.command == "UPDATE_STATE" then
       local state = DeserializeSafe(t.params.state) or {}
       out[#out + 1] = string.format(
@@ -151,6 +155,18 @@ do
   local before = published
   T.eq("a favorite that cannot go out shows no level", toldTo("HATCH_VOLUME", playFavorite), "")
   T.eq("and nothing is published", published, before)
+end
+
+T.section("A connection the driver restarts itself is suspended while it comes up, even after a lost link")
+do
+  connectOnStart = false
+  EC.Reconnect()
+  T.eq(
+    "the night light asking for its state",
+    toldTo("HATCH_LIGHT", refresh("HATCH_LIGHT")),
+    "disconnected (suspended)"
+  )
+  connectOnStart = true
 end
 
 T.section("Connected again, a companion is told the state at once")

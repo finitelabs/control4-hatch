@@ -47,11 +47,18 @@ local lightState = {
   brightnessPct = 100,
 }
 
--- A color Control4 set while the light was off { x, y, red, green, blue }: the night light cannot take a color without
--- lighting, so it is kept, and the next on comes on in it. Cleared once the light is on.
+-- A color Control4 set while the light was off { x, y, red, green, blue, preset }: the night light cannot take a color
+-- without lighting, so it is kept, and the next on comes on in it. Cleared once the light is on.
 local nextOnColor = nil
 -- An on was sent and the light has not yet reported it: a color sent now is for the light on its way on.
 local onSent = false
+-- An off was sent and the light has not reported since: a color sent now would light it again, so it is kept.
+local offSent = false
+-- The color preset { id, origin, red, green, blue } the light was last sent: told with its color while a report shows
+-- that color.
+local colorPreset = nil
+-- The brightness preset the last SET_BRIGHTNESS_TARGET named, told with the level; any other level command clears it.
+local brightnessPresetId = nil
 -- Until when a Navigator On's follow-up is expected, after an on that came on in nextOnColor: the proxy sends the
 -- Color On Mode's own color, naming its preset, 5-6 ms after the level (dev, 2026-11-08).
 local heldOnFollowUpUntil = nil
@@ -74,6 +81,7 @@ end
 local function notifyBrightness(pct)
   SendToProxy(PROXY_BINDING, "LIGHT_BRIGHTNESS_CHANGED", {
     LIGHT_BRIGHTNESS_CURRENT = tonumber(pct) or 0,
+    LIGHT_BRIGHTNESS_CURRENT_PRESET_ID = brightnessPresetId,
   }, "NOTIFY")
 end
 
@@ -83,19 +91,30 @@ local function notifyOnline(online)
   SendToProxy(PROXY_BINDING, "ONLINE_CHANGED", { STATE = online and true or false }, "NOTIFY")
 end
 
-local function notifyXY(x, y)
+--- @param preset table|nil The color preset { id, origin } the color is, which the proxy names it by.
+local function notifyXY(x, y, preset)
   SendToProxy(PROXY_BINDING, "LIGHT_COLOR_CHANGED", {
     LIGHT_COLOR_CURRENT_X = x,
     LIGHT_COLOR_CURRENT_Y = y,
     LIGHT_COLOR_CURRENT_COLOR_MODE = LIGHT_COLOR_MODE_FULL,
+    LIGHT_COLOR_CURRENT_PRESET_ID = preset and preset.id,
+    LIGHT_COLOR_CURRENT_PRESET_ORIGIN = preset and preset.origin,
   }, "NOTIFY")
 end
 
-local function notifyColor(red, green, blue)
+local function notifyColor(red, green, blue, preset)
   local x, y = C4:ColorRGBtoXY(tonumber(red) or 255, tonumber(green) or 255, tonumber(blue) or 255)
   if x and y then
-    notifyXY(x, y)
+    notifyXY(x, y, preset)
   end
+end
+
+--- Forget the device the light was bound to: the one it is bound to next tells its own state.
+local function forgetDevice()
+  lightState.online, lightState.on = false, false
+  lightState.red, lightState.green, lightState.blue, lightState.brightnessPct = 255, 255, 255, 100
+  nextOnColor, onSent, offSent, heldOnFollowUpUntil, heldOnSent = nil, false, false, nil, false
+  colorPreset, brightnessPresetId = nil, nil
 end
 
 --------------------------------------------------------------------------------
@@ -113,9 +132,23 @@ local function applyState(tParams)
   lightState.green = tonumber(state.green) or lightState.green
   lightState.blue = tonumber(state.blue) or lightState.blue
   lightState.brightnessPct = tonumber(state.brightnessPct) or lightState.brightnessPct
+  offSent = false
   if lightState.on then
     nextOnColor = nil
     onSent = false
+  end
+  -- An off light reports no color, so only a lit one says whether it still shows the preset's.
+  local shown = colorPreset
+  if
+    lightState.on
+    and not (
+      shown
+      and lightState.red == shown.red
+      and lightState.green == shown.green
+      and lightState.blue == shown.blue
+    )
+  then
+    colorPreset = nil
   end
 
   notifyOnline(lightState.online)
@@ -123,9 +156,9 @@ local function applyState(tParams)
   -- color chip in Navigator stays meaningful.
   notifyBrightness(lightState.on and lightState.brightnessPct or 0)
   if nextOnColor then
-    notifyXY(nextOnColor.x, nextOnColor.y)
+    notifyXY(nextOnColor.x, nextOnColor.y, nextOnColor.preset)
   else
-    notifyColor(lightState.red, lightState.green, lightState.blue)
+    notifyColor(lightState.red, lightState.green, lightState.blue, colorPreset)
   end
   UpdateProperty("Driver Status", lightState.online and "Connected" or "Device offline")
 end
@@ -138,22 +171,30 @@ end
 local function turnOn(body)
   if nextOnColor then
     body.red, body.green, body.blue = nextOnColor.red, nextOnColor.green, nextOnColor.blue
+    local preset = nextOnColor.preset
+    colorPreset = preset
+      and { id = preset.id, origin = preset.origin, red = body.red, green = body.green, blue = body.blue }
     heldOnSent = true
   end
   -- An On the account cannot send never reaches the light.
   onSent = onSent or (lightState.online and not lightState.on)
+  offSent = false
   entityCommand(body)
 end
 
-local function turnOff()
+--- Send a command that turns the light off.
+local function turnOff(body)
   onSent = false
-  entityCommand({ command = "off" })
+  -- An Off the account cannot send never reaches the light either.
+  offSent = lightState.online
+  entityCommand(body)
 end
 
 function RFP.ON(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
+  brightnessPresetId = nil
   turnOn({ command = "on" })
 end
 
@@ -161,7 +202,8 @@ function RFP.OFF(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
-  turnOff()
+  brightnessPresetId = nil
+  turnOff({ command = "off" })
 end
 
 function RFP.DYNAMIC_ON(idBinding)
@@ -176,8 +218,9 @@ function RFP.TOGGLE(idBinding)
   if idBinding ~= PROXY_BINDING then
     return
   end
+  brightnessPresetId = nil
   if lightState.on then
-    turnOff()
+    turnOff({ command = "off" })
   else
     turnOn({ command = "on" })
   end
@@ -196,8 +239,7 @@ local function setBrightness(idBinding, level)
   if pct > 0 then
     turnOn({ command = "setBrightness", brightness = pct })
   else
-    onSent = false
-    entityCommand({ command = "setBrightness", brightness = pct })
+    turnOff({ command = "setBrightness", brightness = pct })
   end
 end
 
@@ -209,10 +251,15 @@ function RFP.GET_CONNECTED_STATE(idBinding)
 end
 
 function RFP.SET_LEVEL(idBinding, _strCommand, tParams)
+  brightnessPresetId = nil
   setBrightness(idBinding, Select(tParams, "LEVEL"))
 end
 
 function RFP.SET_BRIGHTNESS_TARGET(idBinding, _strCommand, tParams)
+  if idBinding ~= PROXY_BINDING then
+    return
+  end
+  brightnessPresetId = tointeger(Select(tParams, "LIGHT_BRIGHTNESS_TARGET_PRESET_ID"))
   heldOnSent = false
   setBrightness(idBinding, Select(tParams, "LIGHT_BRIGHTNESS_TARGET"))
   -- A Navigator On arrives as a level naming a brightness preset, and its follow-up color comes next. Programming's
@@ -224,6 +271,7 @@ function RFP.SET_BRIGHTNESS_TARGET(idBinding, _strCommand, tParams)
 end
 
 function RFP.RAMP_TO_LEVEL(idBinding, _strCommand, tParams)
+  brightnessPresetId = nil
   setBrightness(idBinding, Select(tParams, "LEVEL"))
 end
 
@@ -237,9 +285,12 @@ function RFP.SET_COLOR_TARGET(idBinding, _strCommand, tParams)
   local named = Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ID") and Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ORIGIN")
   if followUpUntil and C4:GetTime() < followUpUntil and named and nextOnColor then
     log:debug("SET_COLOR_TARGET of a preset after an on in a color set while off: not applied")
-    notifyXY(nextOnColor.x, nextOnColor.y)
+    notifyXY(nextOnColor.x, nextOnColor.y, nextOnColor.preset)
     return
   end
+  local presetId = tointeger(Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ID"))
+  local presetOrigin = tointeger(Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ORIGIN"))
+  local preset = presetId and presetOrigin and { id = presetId, origin = presetOrigin } or nil
   local x = tonumber(Select(tParams, "LIGHT_COLOR_TARGET_X"))
   local y = tonumber(Select(tParams, "LIGHT_COLOR_TARGET_Y"))
   if not (x and y) then
@@ -259,12 +310,14 @@ function RFP.SET_COLOR_TARGET(idBinding, _strCommand, tParams)
     end
     return v
   end
-  -- Off, the color waits for the next on, which would otherwise light it now.
-  if not (lightState.on or onSent) then
-    nextOnColor = { x = x, y = y, red = clamp(red), green = clamp(green), blue = clamp(blue) }
-    notifyXY(x, y)
+  -- Off, or with an off on its way, the color waits for the next on, which would otherwise light it now.
+  if offSent or not (lightState.on or onSent) then
+    nextOnColor = { x = x, y = y, red = clamp(red), green = clamp(green), blue = clamp(blue), preset = preset }
+    notifyXY(x, y, preset)
     return
   end
+  colorPreset = preset
+    and { id = preset.id, origin = preset.origin, red = clamp(red), green = clamp(green), blue = clamp(blue) }
   entityCommand({ command = "setColor", red = clamp(red), green = clamp(green), blue = clamp(blue) })
 end
 
@@ -282,8 +335,14 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
       applyState(tParams)
     elseif strCommand == "UPDATE_DISCONNECT" then
       lightState.online = false
-      onSent = false
+      onSent, offSent = false, false
       notifyOnline(false)
+      -- A lost link to Hatch reads off. The account's own stop leaves the light as it was, and its next report tells it.
+      if not toboolean(Select(tParams, "suspended")) then
+        lightState.on = false
+        brightnessPresetId = nil
+        notifyBrightness(0)
+      end
       UpdateProperty("Driver Status", "Coordinator offline")
     end
     return
@@ -347,7 +406,11 @@ OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
 --- Announce reachability on bind and retract it on unbind, per light_v2.
 OBC = OBC or {}
 OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)
-  notifyOnline(bIsBound and lightState.online)
+  forgetDevice()
+  -- At a controller start this runs before late init, which tells offline itself.
+  if gInitialized then
+    notifyOnline(false)
+  end
   if bIsBound then
     SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
   end

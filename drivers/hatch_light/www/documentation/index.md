@@ -77,7 +77,8 @@ in a project.
   that color at its next turn-on
 - Advanced Lighting Scenes participation
 - Real-time state synchronization with the Hatch device through the account
-  driver
+  driver; while the account has lost its connection to Hatch, the light shows
+  off
 
 # <span style="color:#13294C">Compatibility</span>
 

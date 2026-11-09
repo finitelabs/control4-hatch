@@ -60,9 +60,14 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 <!-- #endif -->
 
-<!-- #ifdef DRIVERCENTRAL -->
-
 ### Changed
+
+- Changed the Hatch Night Light and Hatch Volume to show off while the Hatch
+  driver has lost its connection to Hatch, and their state again once it
+  reconnects. When the Hatch driver stops the connection itself, they keep their
+  state.
+
+<!-- #ifdef DRIVERCENTRAL -->
 
 - Changed Log Level in the DriverCentral build to stop at `4 - Debug`:
   `5 - Trace` and `6 - Ultra` are offered only while a Support Code from Finite
