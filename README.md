@@ -94,7 +94,6 @@ Presents one device's RGB night light as a standard Control4 light (light_v2).
 - On, off, brightness, and full color from the light UI and from programming
 - Color handled with Control4's built-in color model, so it matches the rest of
   the lighting in a project
-- Advanced Lighting Scenes support
 
 ## Hatch Volume
 
@@ -262,6 +261,12 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 - Changed the Hatch Night Light and Hatch Volume to show off while the
   connection to Hatch is lost, and their state again once it reconnects.
+
+### Removed
+
+- Removed the scene, on mode and ramp options from the Hatch Night Light and
+  Hatch Volume, and the Default On option from the Hatch Night Light, since
+  neither driver acted on them.
 
 ## v20260816 - 2026-08-16
 

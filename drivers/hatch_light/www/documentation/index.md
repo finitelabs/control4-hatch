@@ -24,8 +24,7 @@ ______________________________________________________________________
 
 The Hatch Night Light driver presents one Hatch device's RGB night light as a
 standard Control4 light (light_v2). Turn the light on and off, set brightness,
-and pick a color from the light UI or from Composer programming, and use it in
-Advanced Lighting Scenes like any other light.
+and pick a color from the light UI or from Composer programming.
 
 This is a companion to the Hatch account driver, which owns the cloud
 connection. This driver holds no credentials of its own: it binds to the account
@@ -75,7 +74,6 @@ in a project.
   the lighting in a project
 - A color set while the light is off leaves it off, and the light comes on in
   that color at its next turn-on
-- Advanced Lighting Scenes participation
 - Real-time state synchronization with the Hatch device through the account
   driver; while the account has lost its connection to Hatch, the light shows
   off
