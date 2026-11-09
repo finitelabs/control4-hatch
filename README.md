@@ -248,6 +248,9 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
+- Fixed a color set while the Hatch Night Light was off turning the light on. It
+  now stays off, and its next turn-on comes on in that color.
+
 - Fixed the Hatch Sound Machine sometimes turning itself off shortly after a
   driver update or account reconnect while it was playing, where a stale
   playback update arriving as the connection resettled re-claimed and then
