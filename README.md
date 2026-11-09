@@ -250,14 +250,11 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 - Fixed a color set while the Hatch Night Light was off turning the light on,
   and its next turn-on now comes on in that color.
-
 - Fixed the Hatch Sound Machine sometimes turning itself off, or leaving a
   now-playing card that could not be controlled, after a driver update or
   account reconnect while it was playing.
-
 - Fixed the Hatch companion drivers sometimes showing the account as connected
   after it lost its connection to Hatch.
-
 - Fixed an automatic update sometimes leaving the companion drivers on the
   previous version, where they could stop responding until the next update.
 

@@ -42,25 +42,19 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   account reconnect while it was playing.
 - Fixed the Hatch companion drivers sometimes showing the account as connected
   after it lost its connection to Hatch.
-
-<!-- #ifndef DRIVERCENTRAL -->
-
+  <!-- #ifndef DRIVERCENTRAL -->
 - Fixed an automatic update sometimes leaving the companion drivers on the
   previous version, where they could stop responding until the next update.
-
-<!-- #endif -->
+  <!-- #endif -->
 
 ### Changed
 
 - Changed the Hatch Night Light and Hatch Volume to show off while the
   connection to Hatch is lost, and their state again once it reconnects.
-
-<!-- #ifdef DRIVERCENTRAL -->
-
+  <!-- #ifdef DRIVERCENTRAL -->
 - Changed Automatic Updates to one setting for every Hatch driver in the
   project, so the drivers update together.
-
-<!-- #endif -->
+  <!-- #endif -->
 
 ## v20260816 - 2026-08-16
 
