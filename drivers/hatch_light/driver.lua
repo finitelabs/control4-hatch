@@ -52,6 +52,9 @@ local lightState = {
 local nextOnColor = nil
 -- An on was sent and the light has not yet reported it: a color sent now is for the light on its way on.
 local onSent = false
+-- Until when a Navigator On's follow-up is expected, after an on that came on in nextOnColor: the proxy sends the
+-- Color On Mode's own color, naming its preset, 5-6 ms after the level (dev, 2026-11-08).
+local heldOnFollowUpUntil = nil
 
 --------------------------------------------------------------------------------
 -- Coordinator link
@@ -133,6 +136,7 @@ end
 local function turnOn(body)
   if nextOnColor then
     body.red, body.green, body.blue = nextOnColor.red, nextOnColor.green, nextOnColor.blue
+    heldOnFollowUpUntil = C4:GetTime() + 250
   end
   -- An On the account cannot send never reaches the light.
   onSent = onSent or (lightState.online and not lightState.on)
@@ -216,6 +220,15 @@ end
 
 function RFP.SET_COLOR_TARGET(idBinding, _strCommand, tParams)
   if idBinding ~= PROXY_BINDING then
+    return
+  end
+  -- The driver takes no Color On Mode, so a color naming any preset in the window is the Navigator On's own.
+  local followUpUntil = heldOnFollowUpUntil
+  heldOnFollowUpUntil = nil
+  local named = Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ID") and Select(tParams, "LIGHT_COLOR_TARGET_PRESET_ORIGIN")
+  if followUpUntil and C4:GetTime() < followUpUntil and named and nextOnColor then
+    log:debug("SET_COLOR_TARGET of a preset after an on in a color set while off: not applied")
+    notifyXY(nextOnColor.x, nextOnColor.y)
     return
   end
   local x = tonumber(Select(tParams, "LIGHT_COLOR_TARGET_X"))

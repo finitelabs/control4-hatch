@@ -26,6 +26,12 @@ function C4:GetDriverConfigInfo(section)
   return section == "minimum_os_version" and "3.3.0" or configInfo(self, section)
 end
 
+-- A clock the test moves.
+local clock = 0
+function C4:GetTime()
+  return clock
+end
+
 local told = {}
 function C4:SendToProxy(id, command, params)
   told[#told + 1] = { id = id, command = command, params = params or {} }
@@ -171,5 +177,49 @@ proxy("ON")
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
 T.eq("an On while disconnected: the color is kept, not sent", sent(), {})
+
+T.section("a Navigator On's own color, sent right after its level, leaves the color set while off")
+-- A Navigator On: its level, then 5 ms later the Color On Mode's own color, naming its preset (dev, 2026-11-08).
+local WHITE_PRESET = {
+  LIGHT_COLOR_TARGET_X = 0.42,
+  LIGHT_COLOR_TARGET_Y = 0.4,
+  LIGHT_COLOR_TARGET_MODE = 0,
+  LIGHT_COLOR_TARGET_COLOR_RATE = 750,
+  LIGHT_COLOR_TARGET_PRESET_ID = 1,
+  LIGHT_COLOR_TARGET_PRESET_ORIGIN = 1,
+}
+local function levelOn()
+  proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 100, RATE = 750, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 1 })
+end
+report(false)
+proxy("SET_COLOR_TARGET", GREEN)
+mark()
+levelOn()
+clock = clock + 5
+proxy("SET_COLOR_TARGET", WHITE_PRESET)
+T.eq(
+  "its level carries the color set while off, and its own color is not sent",
+  sent(),
+  { { command = "setBrightness", brightness = 100, red = 51, green = 153, blue = 0 } }
+)
+T.eq("the proxy is told the color the light keeps", colorsTold(), { 0.2 })
+report(true, { 51, 153, 0 })
+proxy("OFF")
+report(false)
+proxy("SET_COLOR_TARGET", GREEN)
+levelOn()
+clock = clock + 5
+mark()
+proxy("SET_COLOR_TARGET", GREEN)
+T.eq("a color naming no preset right after the level is a new pick", #sent(), 1)
+report(true, { 51, 153, 0 })
+proxy("OFF")
+report(false)
+proxy("SET_COLOR_TARGET", GREEN)
+levelOn()
+clock = clock + 300
+mark()
+proxy("SET_COLOR_TARGET", WHITE_PRESET)
+T.eq("a preset's color well after the level is a pick too", #sent(), 1)
 
 T.finish()
