@@ -18,6 +18,11 @@ function C4:GetDriverConfigInfo(section)
   return section == "minimum_os_version" and "3.3.0" or configInfo(self, section)
 end
 
+-- Turning on reads the proxy's Default On level; this proxy has none.
+function C4:GetProxyDevices()
+  return nil
+end
+
 local told = {}
 function C4:SendToProxy(id, command, params)
   told[#told + 1] = { id = id, command = command, params = params or {} }
@@ -35,6 +40,17 @@ end
 
 local function proxy(command, params)
   ReceivedFromProxy(PROXY, command, params or {})
+end
+
+--- The command of each ENTITY_COMMAND sent to the Hatch driver since the mark.
+local function commands()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == COORD and t.command == "ENTITY_COMMAND" then
+      out[#out + 1] = (DeserializeSafe(t.params.body) or {}).command
+    end
+  end
+  return out
 end
 
 --- The Hatch driver's state for the volume: playing at `level`, or stopped.
@@ -75,6 +91,9 @@ T.section("a rebind forgets the device the volume was bound to")
 mark()
 OBC[COORD](COORD, "HATCH_VOLUME", true)
 T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "online=false" })
+mark()
+proxy("TOGGLE")
+T.eq("and a Toggle before the new device reports turns it on, not off as the old one was", commands(), { "on" })
 report(false, 0)
 
 T.section("a lost link to Hatch reads off; the account's own stop leaves the volume as it was")

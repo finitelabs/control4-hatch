@@ -578,6 +578,8 @@ local function setConnectionStatus(text)
 end
 
 local function startConnection()
+  -- A connection started here, or not started at all, is the driver's own doing; only a lost link clears this.
+  gSuspended = true
   if connection then
     connection:stop()
     connection = nil
@@ -587,7 +589,6 @@ local function startConnection()
   if not drivercentral:licensed() then
     setConnectionStatus(drivercentral.UNLICENSED_STATUS)
     UpdateProperty("Driver Status", drivercentral.UNLICENSED_STATUS)
-    gSuspended = true
     pushDisconnect()
     return
   end
@@ -599,7 +600,6 @@ local function startConnection()
     -- replaced socket), and no new connection is coming, so say so explicitly or
     -- the companions keep reporting the last live state forever.
     setConnectionStatus("Enter account email and password")
-    gSuspended = true
     pushDisconnect()
     return
   end
