@@ -264,9 +264,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Removed
 
-- Removed the scene, on mode and ramp options from the Hatch Night Light and
-  Hatch Volume, and the Default On option from the Hatch Night Light, since
-  neither driver acted on them.
+- Removed the scene, on mode, Default On and ramp options from the Hatch Night
+  Light and Hatch Volume, since neither driver acted on them.
 
 ## v20260816 - 2026-08-16
 

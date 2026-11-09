@@ -124,11 +124,11 @@
     <!--
       Deprecated in 3.3.2, but Composer's test panel still gates on them: the
       On/Off buttons, the Ramp button, and the Default On preset editor. The
-      volume has no ramp; a sound starts at the Default On level.
+      volume has no ramp, and no Default On of its own.
     -->
     <on_off>True</on_off>
     <ramp_level>False</ramp_level>
-    <supports_default_on>True</supports_default_on>
+    <supports_default_on>False</supports_default_on>
     <!-- True would mean the light's ramp rate cannot be changed. -->
     <has_fixed_ramp_rate>False</has_fixed_ramp_rate>
     <fixed_ramp_rate>0</fixed_ramp_rate>
