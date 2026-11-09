@@ -221,5 +221,37 @@ clock = clock + 300
 mark()
 proxy("SET_COLOR_TARGET", WHITE_PRESET)
 T.eq("a preset's color well after the level is a pick too", #sent(), 1)
+-- Programming's On, Toggle and a level naming no brightness preset send no follow-up: a preset's color right after
+-- one is a command.
+for _, on in ipairs({
+  {
+    "programming's On",
+    function()
+      proxy("ON")
+    end,
+  },
+  {
+    "Toggle",
+    function()
+      proxy("TOGGLE")
+    end,
+  },
+  {
+    "a level naming no brightness preset",
+    function()
+      proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 100, RATE = 750 })
+    end,
+  },
+}) do
+  report(true, { 51, 153, 0 })
+  proxy("OFF")
+  report(false)
+  proxy("SET_COLOR_TARGET", GREEN)
+  on[2]()
+  clock = clock + 5
+  mark()
+  proxy("SET_COLOR_TARGET", WHITE_PRESET)
+  T.eq(on[1] .. ", then a preset's color: it goes out", #sent(), 1)
+end
 
 T.finish()

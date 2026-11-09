@@ -55,6 +55,8 @@ local onSent = false
 -- Until when a Navigator On's follow-up is expected, after an on that came on in nextOnColor: the proxy sends the
 -- Color On Mode's own color, naming its preset, 5-6 ms after the level (dev, 2026-11-08).
 local heldOnFollowUpUntil = nil
+-- The last turn-on carried nextOnColor, for its command to arm heldOnFollowUpUntil.
+local heldOnSent = false
 
 --------------------------------------------------------------------------------
 -- Coordinator link
@@ -136,7 +138,7 @@ end
 local function turnOn(body)
   if nextOnColor then
     body.red, body.green, body.blue = nextOnColor.red, nextOnColor.green, nextOnColor.blue
-    heldOnFollowUpUntil = C4:GetTime() + 250
+    heldOnSent = true
   end
   -- An On the account cannot send never reaches the light.
   onSent = onSent or (lightState.online and not lightState.on)
@@ -211,7 +213,14 @@ function RFP.SET_LEVEL(idBinding, _strCommand, tParams)
 end
 
 function RFP.SET_BRIGHTNESS_TARGET(idBinding, _strCommand, tParams)
+  heldOnSent = false
   setBrightness(idBinding, Select(tParams, "LIGHT_BRIGHTNESS_TARGET"))
+  -- A Navigator On arrives as a level naming a brightness preset, and its follow-up color comes next. Programming's
+  -- On, Toggle or a plain level sends none.
+  if heldOnSent and Select(tParams, "LIGHT_BRIGHTNESS_TARGET_PRESET_ID") then
+    heldOnFollowUpUntil = C4:GetTime() + 250
+  end
+  heldOnSent = false
 end
 
 function RFP.RAMP_TO_LEVEL(idBinding, _strCommand, tParams)
