@@ -2,22 +2,47 @@
 
 ## Overview
 
-Control Hatch Rest+ and Restore sleep devices from Control4. Each sound machine
-plays as a Control4 listening source in its room, and each night light is a
-standard Control4 light, all through one connection to the homeowner's Hatch
-account with no extra bridge.
+Bring Hatch Rest+ and Restore sleep devices into Control4. Each device's sound
+machine plays as a listening source in its room, and its night light works like
+any other Control4 light, so bedtime sounds and lighting join the rest of the
+home's scenes and programming. The drivers connect to the homeowner's Hatch
+account, with no extra bridge or hub.
 
 ## Features
 
-- One Hatch account connection shared by every device and room
-- Devices on the account found automatically
 - The sound machine as a listening source in its room, with no amplifier needed
 - Sounds and favorites to browse and play, with cover art, volume and mute
 - The night light as a Control4 light with brightness and full color
-- Play Sound, Play Favorite and Stop commands for programming
-- Live state when the Hatch app or the device itself makes a change
+- One Hatch account connection shared by every device and room
+- Every device on the account found automatically
+- Play Sound, Play Favorite and Stop commands, and Started Playing and Stopped
+  Playing events, for programming
+- Changes made in the Hatch app or on the device show in Control4 as they happen
+
+## Included Drivers
+
+### Hatch
+
+The account driver. Sign in once with the homeowner's Hatch account, and it
+finds every device on the account and holds one connection for all of them.
+
+### Hatch Sound Machine
+
+Plays a device's sounds and favorites as a Control4 listening source in its
+room, with now playing, volume and mute.
+
+### Hatch Night Light
+
+Presents a device's night light as a standard Control4 light with on, off,
+brightness and full color.
 
 ## System requirements
 
 - Control4 OS 3.3+
-- A Hatch account with a Rest+ or Restore set up in the Hatch app
+- A Hatch account with each device set up in the Hatch app
+- Internet access from the Control4 controller
+
+## Compatibility
+
+- Hatch Rest+ (2nd generation)
+- Hatch Restore
