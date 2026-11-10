@@ -13,8 +13,7 @@ account with no extra bridge.
 - Devices on the account found automatically
 - The sound machine as a listening source in its room, with no amplifier needed
 - Sounds and favorites to browse and play, with cover art, volume and mute
-- The night light as a Control4 light with brightness, full color and Advanced
-  Lighting Scenes
+- The night light as a Control4 light with brightness and full color
 - Play Sound, Play Favorite and Stop commands for programming
 - Live state when the Hatch app or the device itself makes a change
 
