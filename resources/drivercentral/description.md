@@ -2,6 +2,9 @@
 
 ## Overview
 
+*This software is neither affiliated with nor endorsed by either Control4 or
+Hatch.*
+
 Bring Hatch Rest+ and Restore sleep devices into Control4. Each device's sound
 machine plays as a listening source in its room, and its night light works like
 any other Control4 light, so bedtime sounds and lighting join the rest of the
@@ -19,7 +22,7 @@ account, with no extra bridge or hub.
   Playing events, for programming
 - Changes made in the Hatch app or on the device show in Control4 as they happen
 
-## Included Drivers
+## Included drivers
 
 ### Hatch
 
@@ -49,5 +52,4 @@ that only control lights. Turning it on plays a chosen sound or favorite.
 
 ## Compatibility
 
-- Hatch Rest+ (2nd generation)
-- Hatch Restore
+Works with the Hatch Rest+ (2nd generation) and the Hatch Restore.
