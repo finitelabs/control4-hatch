@@ -36,6 +36,11 @@ room, with now playing, volume and mute.
 Presents a device's night light as a standard Control4 light with on, off,
 brightness and full color.
 
+### Hatch Volume
+
+Presents a device's sound machine volume as a Control4 dimmer, for integrations
+that only control lights. Turning it on plays a chosen sound or favorite.
+
 ## System requirements
 
 - Control4 OS 3.3+
