@@ -35,6 +35,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Fixed
 
+- Fixed the Hatch drivers sometimes showing a light or sound as off, or at the
+  wrong level, while the device was on.
 - Fixed a color set while the Hatch Night Light was off turning the light on,
   and its next turn-on now comes on in that color.
 - Fixed the Hatch Sound Machine sometimes turning itself off, or leaving a

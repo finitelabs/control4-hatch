@@ -47,6 +47,8 @@ function Connection:new(opts)
   instance.onDisconnected = opts.onDisconnected
   instance.clientId = opts.clientId or ("control4-hatch-" .. tostring(math.random(100000, 999999)))
   instance.devices = {}
+  -- Each device's last whole reported document, which a partial report is merged into.
+  instance.reported = {}
   instance.connected = false -- true once MQTT CONNACK rc=0 seen
   -- Whether the companions have already been told we are down, so a retry loop
   -- announces once rather than on every failed attempt.
@@ -74,6 +76,21 @@ end
 --- Extract the thing name from a `$aws/things/<thing>/shadow/...` topic.
 local function thingFromTopic(topic)
   return topic:match("^%$aws/things/(.-)/shadow")
+end
+
+--- Merge `from` into `into`, table by table: a field `from` leaves out keeps its value in `into`.
+--- @param into table
+--- @param from table
+--- @return table into
+local function mergeReported(into, from)
+  for k, v in pairs(from) do
+    if type(v) == "table" and type(into[k]) == "table" then
+      mergeReported(into[k], v)
+    else
+      into[k] = v
+    end
+  end
+  return into
 end
 
 -- ---- lifecycle -----------------------------------------------------------
@@ -418,6 +435,17 @@ function Connection:onShadowMessage(topic, payload)
   if not reported and doc.current and doc.current.state then
     reported = doc.current.state.reported
     desired = desired or doc.current.state.desired
+  end
+  -- update/accepted carries only the fields that changed; get/accepted and update/documents carry the whole document.
+  if type(reported) == "table" then
+    if topic:find("/shadow/update/accepted$") then
+      if not self.reported[thing] then
+        return
+      end
+      reported = mergeReported(self.reported[thing], reported)
+    else
+      self.reported[thing] = reported
+    end
   end
 
   if self.onShadow then
