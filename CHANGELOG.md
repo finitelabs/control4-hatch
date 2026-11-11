@@ -20,18 +20,22 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
-<!-- #ifdef DRIVERCENTRAL -->
-
 ### Added
 
+- Added Button Links to the Hatch Night Light, with keypad LEDs that follow the
+  light.
+- Added Advanced Lighting Scenes and the brightness and color on modes to the
+  Hatch Night Light.
+- Added a Connected variable to the Hatch Night Light and Hatch Volume for
+  Control4 programming.
+  <!-- #ifdef DRIVERCENTRAL -->
 - Added a Support Code property to every Hatch driver, which lets Finite Labs
   support open the driver's Lua tab and its Trace and Ultra log levels for an
   hour.
 - Added Cloud Monitoring, Enabled by default, which sends Finite Labs each
   driver's memory use every hour and each error it hits, and a Diagnostics
   Snapshot action.
-
-<!-- #endif -->
+  <!-- #endif -->
 
 ### Fixed
 
@@ -58,8 +62,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Removed
 
-- Removed the scene, on mode, Default On and ramp options from the Hatch Night
-  Light and Hatch Volume, since neither driver acted on them.
+- Removed the scene and on mode options from the Hatch Volume, which acts only
+  on its level.
 
 ## v20260816 - 2026-08-16
 
