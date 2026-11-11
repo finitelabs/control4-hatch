@@ -245,6 +245,15 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
+### Added
+
+- Added Button Links to the Hatch Night Light, with keypad LEDs that follow the
+  light.
+- Added Advanced Lighting Scenes and the brightness and color on modes to the
+  Hatch Night Light.
+- Added a Connected variable to the Hatch Night Light and Hatch Volume for
+  Control4 programming.
+
 ### Fixed
 
 - Fixed a color set while the Hatch Night Light was off turning the light on,
@@ -264,8 +273,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Removed
 
-- Removed the scene, on mode, Default On and ramp options from the Hatch Night
-  Light and Hatch Volume, since neither driver acted on them.
+- Removed the scene and on mode options from the Hatch Volume, which acts only
+  on its level.
 
 ## v20260816 - 2026-08-16
 
