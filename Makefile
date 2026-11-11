@@ -203,6 +203,9 @@ docs-drivercentral: preprocess $(VENV_STAMP)
 		$(VENV_PY) tools/docs.py description \
 			resources/drivercentral/description.md dist/drivercentral/listing/description.html; \
 	fi
+	@if grep -q FACTS-STRIP-URL resources/drivercentral/description.md 2>/dev/null; then \
+		echo "::warning file=resources/drivercentral/description.md::The facts strip isn't uploaded to DriverCentral yet, so description.html has no facts strip. Upload banners/facts-strip-2400x136.png through the description editor and put its URL in place of FACTS-STRIP-URL."; \
+	fi
 	@cd resources/drivercentral 2>/dev/null || exit 0; \
 	for f in product-card-300x300.png banners/*.png photos/*.png; do \
 		[ -f "$$f" ] || continue; \
@@ -325,6 +328,11 @@ test: ## Run the Lua test suite (test/test_*.lua) and the tools' tests (tools/te
 		echo "==> $$f"; \
 		python3 "$$f" || exit 1; \
 	done
+
+.PHONY: light-caps
+light-caps: ## Write each light_v2 driver's <capabilities> in driver.xml from its lib.light profile
+	@LUA_PATH="$(CURDIR)/test/?.lua;$(CURDIR)/src/?.lua;$(CURDIR)/src/?/init.lua;$(CURDIR)/vendor/?.lua;$(CURDIR)/vendor/?/init.lua;;" \
+		luajit -e "require('c4_shim')" tools/light-caps.lua
 
 .PHONY: support-code
 support-code: ## Print today's Support Code, which opens a DriverCentral build's Lua window

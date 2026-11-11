@@ -60,6 +60,8 @@ then pull the change in with `copier update`.
 - `utils.lua`: general utilities (XML, device queries, table helpers, type
   coercion)
 - `values.lua`: value parsing, coercion, and formatting
+- `light.lua` and `light/`: the Light V2 library, which a light driver is an
+  adapter over (see [Writing a Light Driver](#writing-a-light-driver))
 - `github-updater.lua`: GitHub Releases self-updater (OSS builds)
 
 **Vendor libraries (`vendor/`):**
@@ -92,6 +94,9 @@ then pull the change in with `copier update`.
 - `requirements.txt`, the build-time Python dependency list
 - `test/testlib.lua`, `test/c4_fixtures.lua`, `test/c4_shim.lua`,
   `test/run_test.sh`, and the `test/test_*.lua` suites covering shared code
+- `test/light_harness.lua`, `test/light_drivers.lua` and `test/light_setup/`,
+  the Light V2 test kit, `test/test_light_contract.lua`, its contract run, and
+  `tools/light-caps.lua`
 - `.copier-answers.yml`, which Copier maintains; never edit it by hand
 
 ### What's Driver-Specific (Yours to Edit)
@@ -277,6 +282,11 @@ shows it. The product card, the banners and the listing photos are copied from
 upload. When it has expired, run the Build workflow on the tag again from the
 Actions tab.
 
+While `description.md` still has `FACTS-STRIP-URL` for the facts strip,
+`description.html` leaves the strip out and the build prints a warning. Upload
+`banners/facts-strip-2400x136.png` through DriverCentral's description editor
+and put the URL it gives in its place.
+
 Step 1 rewrites tracked files in place. Formatting covers `tools/*.py`, all Lua
 under `drivers/`, `src/`, `test/`, `tools/` and `vendor/`, and every Markdown
 file at the repo root, under `documentation/`, and under
@@ -375,6 +385,10 @@ runs `fn` with `print` collected and returns `ok, err, output`, and
 - `F.dofileBuild(path, build)` runs a Lua file as the `"drivercentral"` or
   `"oss"` build compiles it, with its `#ifdef` blocks applied. A driver loaded
   raw runs every arm.
+- `F.virtualClock(opts)` runs `C4:SetTimer` and `C4:GetTime` on a virtual clock,
+  so a test plays minutes of timers at once and in a fixed order. Drive it with
+  `run(ms)` and `at(ms, fn)`, read `now()` and `errors` (what a timer or promise
+  callback threw), then `restore()`.
 
 ### Persisted values
 
@@ -410,6 +424,44 @@ it. Neither runner needs telling about them: `make test` collects only
 resolves on its own.
 
 Promote either one into the template only once a second driver needs it.
+
+## Writing a Light Driver
+
+`src/lib/light.lua` owns the Light V2 proxy: its commands and notifications,
+presets, on modes, Dim-To-Warm, scenes, the button links with their LEDs, the
+light's online state and its Connected variable. A light driver is an adapter
+that states facts about its device and moves bytes. The LuaDoc header of
+`src/lib/light.lua` is the contract.
+
+- **The profile**, given to `Light.new` in the driver's main chunk with the API
+  the adapter is written for: the most any device behind the driver can do
+  (`dims`, `color`, `cct`), whether every device is the same (`fixed`), and the
+  families it offers (`fades`, `scenes`, `onModes`, `flash`, `extras`). An
+  adapter written for another API makes `Light.new` raise, so `make test` and
+  `make build` fail.
+- **The declaration**, at each connection and on any change: what this device
+  can do, how it fades and how to read its reports. One beyond the profile is
+  refused.
+- **The hooks**: `send(cmd)` puts a command on the wire, `refresh()` asks for
+  the whole state, and the optional ones answer device questions only.
+- **The calls**: `report` for every state the device gives, `lost` when it
+  cannot be reached, `via` for a device binding the library then owns, `forget`,
+  `reset` from Reset Driver, and `destroy` from `OnDriverDestroyed`.
+
+`make light-caps` writes each light driver's `<capabilities>` block in
+`driver.xml` from its profile, between the two `lib.light` comments. Nothing in
+the block is written by hand.
+
+`test/test_light_contract.lua` proves every light_v2 driver in the repo: its
+chunk makes one light at the library's API, its `driver.xml` holds the block
+`make light-caps` writes, and each rig the driver's own `test/light_rigs.lua`
+gives passes the kit's contract. A rig loads the driver as it ships and fakes
+only its transport; `test/light_harness.lua` documents the rig interface.
+
+The library, the kit and their suites are the template's: a change made to them
+here is merge surface on every `copier update`, so it goes to the template,
+which runs `test/test_light_fuzz.lua` big before it. `make test` runs a few
+seconds of its seeded runs, from one fixed seed.
 
 ### Tools tests
 
