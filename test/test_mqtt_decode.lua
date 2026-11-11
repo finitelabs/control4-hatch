@@ -112,7 +112,8 @@ T.eq("bare fixed-header byte returns no boundary", pos, nil)
 T.section("Connection:onWsMessage drops a malformed frame and keeps reading")
 --------------------------------------------------------------------------------
 
-local SHADOW_TOPIC = "$aws/things/thing-1/shadow/update/accepted"
+-- A whole document: a partial one (update/accepted) is held back until a whole one has come.
+local SHADOW_TOPIC = "$aws/things/thing-1/shadow/get/accepted"
 local goodPublish = MQTT.publish(SHADOW_TOPIC, '{"state":{"reported":{"volume":42}}}')
 
 local function newConnection()
