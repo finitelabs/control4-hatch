@@ -79,13 +79,9 @@ function adapter:send(cmd)
   end
   local color = cmd.color or heldColor
   heldColor = nil
-  local body
+  local body = { command = "on" }
   if cmd.level then
     body = { command = "setBrightness", brightness = math.max(1, math.floor(cmd.level * 100 + 0.5)) }
-  elseif cmd.on then
-    body = { command = "on" }
-  else
-    body = { command = "setColor" }
   end
   if color then
     body.red, body.green, body.blue = rgbOf(color)
@@ -130,13 +126,18 @@ local function applyState(tParams)
   end
   light:declare(DECLARATION)
   local report = { on = state.on == true, level = (tonumber(state.brightnessPct) or 0) / 100 }
-  -- An off light reports black, so only a lit one says its color. Lit, it has had its next on.
+  -- An off light reports black, so only a lit one says its color.
   if state.on == true then
-    heldColor = nil
     local x, y = C4:ColorRGBtoXY(channel(state.red or 255), channel(state.green or 255), channel(state.blue or 255))
     report.color = { x = x, y = y }
   end
-  light:report(report)
+  local verdict = light:report(report)
+  -- Lit by another hand, the light has had its next on. A lit report from before the Off is history
+  -- and keeps the color held.
+  local kind = verdict and verdict.level and verdict.level.kind
+  if state.on == true and (kind == "hand" or kind == "first") then
+    heldColor = nil
+  end
   UpdateProperty("Driver Status", "Connected")
 end
 

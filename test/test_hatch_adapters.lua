@@ -30,13 +30,15 @@ C4.SendToProxy = function(self, id, cmd, params, ...)
   return prior(self, id, cmd, params, ...)
 end
 
---- Load a driver and record what its adapter hands the light.
+--- Load a driver and record what its adapter hands the light. `heard.kind` is the level verdict's
+--- kind the light answers each report with.
 local function load(folder)
   F.dofileBuild(D.root() .. "/drivers/" .. folder .. "/driver.lua", "oss")
   local light = Light.made[#Light.made]
-  local heard = { reports = {}, lost = {} }
+  local heard = { reports = {}, lost = {}, kind = "own" }
   function light:report(state)
     heard.reports[#heard.reports + 1] = state
+    return { level = { kind = heard.kind } }
   end
   function light:lost(kind)
     heard.lost[#heard.lost + 1] = kind or {}
@@ -71,7 +73,8 @@ do
   local rgb = { math.floor(red + 0.5), math.floor(green + 0.5), math.floor(blue + 0.5) }
   local withColor = send(light, { on = true, level = 1, color = RED })[1]
   T.eq("a level with a color carries its RGB", { withColor.red, withColor.green, withColor.blue }, rgb)
-  T.eq("a color alone while on is a setColor", send(light, { color = RED })[1].command, "setColor")
+  local lit = send(light, { on = true, color = RED })[1]
+  T.eq("a color alone while on goes as an on with its RGB", { lit.command, lit.red }, { "on", rgb[1] })
   local x, y = C4:ColorRGBtoXY(rgb[1], rgb[2], rgb[3])
   local shown = light.adapter:shows(RED)
   T.eq("shows: the nearest color the night light makes in RGB", { shown.x, shown.y, shown.mode }, { x, y, 0 })
@@ -79,14 +82,24 @@ end
 
 T.section("hatch_light: a color sent while off is kept for the next on, until the light is lit elsewhere")
 do
-  local light = load("hatch_light")
+  local light, heard = load("hatch_light")
   T.eq("a color for an off light sends nothing", send(light, { on = false, color = RED }), {})
   local on = send(light, { on = true, level = 1 })[1]
   T.check("the next on carries it", on.red ~= nil, on)
   T.eq("and the on after carries none", send(light, { on = true, level = 1 })[1].red, nil)
+  local LIT = { online = true, on = true, red = 255, green = 255, blue = 255, brightnessPct = 50 }
   send(light, { on = false, color = RED })
-  push({ online = true, on = true, red = 255, green = 255, blue = 255, brightnessPct = 50 })
-  T.eq("a light lit elsewhere has had its next on", send(light, { on = true, level = 1 })[1].red, nil)
+  heard.kind = "history"
+  push(LIT)
+  T.check(
+    "a lit report from before the Off keeps it",
+    send(light, { on = true, level = 1 })[1].red ~= nil,
+    "the cloud's late push dropped the held color"
+  )
+  send(light, { on = false, color = RED })
+  heard.kind = "hand"
+  push(LIT)
+  T.eq("a light lit by another hand has had its next on", send(light, { on = true, level = 1 })[1].red, nil)
 end
 
 T.section("hatch_light: the coordinator's state becomes the light's reports")
