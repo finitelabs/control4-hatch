@@ -3,6 +3,10 @@
 ---
 --- On plays what Turn On Plays names, off stops, and a level while playing sets the volume. A sound starts at the
 --- level, and a favorite applies its own volume, which the light is told as the command goes out.
+---
+--- The adapter keeps the volume it last sent, so the account's answer is read as the command's own level. It keeps
+--- it from that send until the next one, or until the driver calls forget() with light:lost or light:reset. A report
+--- after those is read as the account tells it.
 
 require("lib.utils")
 
@@ -89,6 +93,11 @@ end
 
 function Adapter:refresh()
   self.ask()
+end
+
+--- Forgets the volume last sent. The driver calls it with light:lost and light:reset.
+function Adapter:forget()
+  self.wire = nil
 end
 
 --- No device page.

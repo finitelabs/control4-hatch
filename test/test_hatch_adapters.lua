@@ -110,6 +110,13 @@ T.eq(
   { kind = "push", on = false }
 )
 
+T.section("the night light: after forget, what was sent is read as the account tells it")
+sent(light, { fromOff = true, level = 0.504, color = RED, setsLevel = true, setsColor = true })
+light:forget()
+report = light:report({ online = true, on = true, red = 255, green = 0, blue = 0, brightnessPct = 50 })
+T.eq("at the account's level", report.level, 0.5)
+T.falsy("not the command's color", report.color == RED)
+
 T.section("the night light: refresh asks the account")
 light:refresh()
 T.eq("once", asked, 1)
@@ -177,6 +184,11 @@ T.eq(
   volume:report({ online = true, on = false, brightnessPct = 0 }),
   { kind = "push", on = false }
 )
+
+T.section("the volume: after forget, the volume sent is read as the account tells it")
+sent(volume, { level = 0.404, setsLevel = true })
+volume:forget()
+T.eq("at the account's level", volume:report({ online = true, on = true, brightnessPct = 40 }).level, 0.4)
 
 T.section("the volume's facts")
 T.eq("a dimmer with no color", { VolumeAdapter.DEVICE.dims, VolumeAdapter.DEVICE.color }, { true, false })
