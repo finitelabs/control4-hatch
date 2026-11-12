@@ -13,12 +13,16 @@ local T = require("testlib")
 -- This is the released Volume's suite, run once against the light library. Each of its assertions the library
 -- answers differently is marked with T.differs, under the row that says why, and followed by what the volume does now.
 
-local R_SEND = "section 6, hatch: Control4 is told a change as the command goes out"
-local R_FAVORITE = "section 6, hatch_volume: a favorite's volume is told once, as the command goes out"
-local R_ONPLAY = "section 6, hatch_volume: ON while playing is a volume set, so play continues"
-local R_REBIND =
-  "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
-local R_SOUND = "the adapter's wire: an On for a sound carries the volume the Hatch last told"
+-- The library's row for every released light driver, as the light library words it.
+local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
+-- Hatch's own rows: the design's section 6 for Hatch.
+local R_SEND = "hatch: Control4 is told a change as the command goes out"
+local R_FAVORITE = "hatch: a Volume favorite's volume is told once, as the command goes out"
+local R_ONPLAY = "hatch: ON while the Volume plays is a volume set, so play continues"
+-- Differences no integrator sees.
+local BENIGN = {
+  SOUND_VOLUME = "benign: an On for a sound carries the volume the Hatch last told, where it would start anyway",
+}
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -143,7 +147,7 @@ T.section("a sound's start carries no volume, as the proxy holds no Default On l
 Properties["Turn On Plays"] = "Sound: Rain"
 mark()
 proxy("ON")
-T.differs("an ON: the sound, with no volume, so the Hatch keeps its own", R_SOUND)
+T.differs("an ON: the sound, with no volume, so the Hatch keeps its own", BENIGN.SOUND_VOLUME)
 T.eq("an ON: the sound, at the volume the Hatch keeps", bodies(), { { command = "on", soundId = 7, brightness = 35 } })
 report(true, 35)
 proxy("OFF")
@@ -169,7 +173,9 @@ T.section("ON while playing starts the chosen favorite again")
 mark()
 proxy("ON")
 T.differs("the favorite again, which restarts it", R_ONPLAY)
-T.eq("nothing, so the favorite plays on", bodies(), {})
+T.eq("a volume set at the level it plays at, so the favorite plays on", bodies(), {
+  { command = "setBrightness", brightness = 20 },
+})
 report(false, 20)
 Properties["Turn On Plays"] = ""
 

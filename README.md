@@ -257,6 +257,12 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   take it.
 - Changed On on the Hatch Volume while a sound plays to keep it playing, where
   it used to start the chosen favorite again.
+- Changed the Hatch Night Light and Hatch Volume to tell Control4 their state
+  each time the driver starts or reconnects, even when nothing changed.
+- Changed the Hatch Night Light and Hatch Volume to fire no Changed event for a
+  command that leaves them as they were.
+- Changed the Hatch Night Light and Hatch Volume to take no command after a
+  rebind until the newly bound Hatch reports.
 
 ## v20261111 - 2026-11-11
 
