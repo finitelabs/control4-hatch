@@ -10,8 +10,16 @@ require("c4_shim")
 require("c4_local")
 local T = require("testlib")
 
--- This is the released Volume's suite, run once against the light library. Each assertion the library answers
--- differently says so above it: "Differs (section 6)" names a row of the design's section 6.
+-- This is the released Volume's suite, run once against the light library. Each of its assertions the library
+-- answers differently is marked with T.differs, under the row that says why, and followed by what the volume does now.
+
+local R_SEND = "section 6, hatch: Control4 is told a change as the command goes out"
+local R_FAVORITE = "section 6, hatch_volume: a favorite's volume is told once, as the command goes out"
+local R_ONPLAY = "section 6, hatch_volume: ON while playing is a volume set, so play continues"
+local R_REBIND =
+  "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
+local R_SOUND = "the adapter's wire: an On for a sound carries the volume the Hatch last told"
+local R_RAMP = "asked of the light library: ramp_level follows dimming"
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -84,11 +92,12 @@ report(true, 30)
 mark()
 proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 60, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 3 })
 report(true, 60)
--- Differs (section 6): told as the command goes out.
+T.differs("a level naming a preset: told in it", R_SEND)
 T.eq("a level naming a preset: told in it", toldInOrder(), { "level=60/3" })
 mark()
 proxy("SET_LEVEL", { LEVEL = 40 })
 report(true, 40)
+T.differs("a level naming none: told in none", R_SEND)
 T.eq("a level naming none: told in none", toldInOrder(), { "level=40" })
 
 T.section("a rebind forgets the device the volume was bound to")
@@ -97,7 +106,7 @@ OBC[COORD](COORD, "HATCH_VOLUME", true)
 T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "online=false" })
 mark()
 proxy("TOGGLE")
--- Differs (the device gate, accepted by the light library): no command reaches a device that has not reported.
+T.differs("and a Toggle before the new device reports turns it on, not off as the old one was", R_REBIND)
 T.eq("and a Toggle before the new device reports does nothing", commands(), {})
 report(false, 0)
 
@@ -135,7 +144,7 @@ T.section("a sound's start carries no volume, as the proxy holds no Default On l
 Properties["Turn On Plays"] = "Sound: Rain"
 mark()
 proxy("ON")
--- Differs: the ON carries the volume the Hatch last told, so the sound starts where the Hatch would resume it.
+T.differs("an ON: the sound, with no volume, so the Hatch keeps its own", R_SOUND)
 T.eq("an ON: the sound, at the volume the Hatch keeps", bodies(), { { command = "on", soundId = 7, brightness = 35 } })
 report(true, 35)
 proxy("OFF")
@@ -151,15 +160,16 @@ Properties["Turn On Plays"] = "Favorite: Bedtime"
 mark()
 proxy("ON")
 T.eq("the favorite alone", bodies(), { { command = "on", favoriteId = 3 } })
--- Differs (section 6): the favorite's own level is told once, as the command goes out.
+T.differs("the proxy is told no level yet", R_FAVORITE)
 T.eq("the proxy is told the favorite's own level at once", toldInOrder(), { "level=20" })
 report(true, 20)
+T.differs("then the favorite's own", R_FAVORITE)
 T.eq("and its report tells nothing more", toldInOrder(), { "level=20" })
 
 T.section("ON while playing starts the chosen favorite again")
 mark()
 proxy("ON")
--- Differs (section 6): ON while playing is a volume set to the level it plays at, so play continues.
+T.differs("the favorite again, which restarts it", R_ONPLAY)
 T.eq("nothing, so the favorite plays on", bodies(), {})
 report(false, 20)
 Properties["Turn On Plays"] = ""
@@ -174,7 +184,7 @@ do
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off" }) do
     T.eq(name .. " is True", caps[name], "True")
   end
-  -- Differs, asked of the light library: ramp_level follows dimming, so the build declares it True.
+  T.differs("ramp_level is False", R_RAMP)
   T.eq("ramp_level is True", caps.ramp_level, "True")
   for _, name in ipairs({
     "supports_color",

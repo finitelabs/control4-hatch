@@ -11,10 +11,16 @@ require("c4_shim")
 require("c4_local")
 local T = require("testlib")
 
--- This is the released Night Light's suite, run once against the light library. Each assertion the library
--- answers differently says so above it: "Differs (section 6)" names a row of the design's section 6, and
--- "Differs (wire)" is the adapter's full-state command, which carries the color and brightness on every lit command
--- and sends an Off for a level of 0.
+-- This is the released Night Light's suite, run once against the light library. Each of its assertions the library
+-- answers differently is marked with T.differs, under the row that says why, and followed by what the light does now.
+
+local R_SEND = "section 6, hatch: Control4 is told a change as the command goes out"
+local R_WIRE = "the adapter's wire: every lit command carries its color and brightness, and a level of 0 is an Off"
+local R_SHOWN = "the library sends and tells only what changes: a value the light already shows is neither"
+local R_REBIND =
+  "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
+local R_PRESET = "asked of the light library: a preset whose color the light already holds is told with the next on"
+local R_RAMP = "asked of the light library: ramp_level follows dimming"
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -107,11 +113,11 @@ T.eq("nothing is sent, so the light stays off", sent(), {})
 T.eq("the proxy is told it at once", colorsTold(), { 0.2 })
 mark()
 report(false)
--- Differs (J1): the proxy already shows the kept color, so a dark report tells nothing.
+T.differs("a report while still off tells the kept color, not the dark one", R_SHOWN)
 T.eq("a report while still off leaves the kept color, not the dark one", colorsTold(), {})
 mark()
 proxy("ON")
--- Differs (wire).
+T.differs("the next on comes on in it, in one command", R_WIRE)
 T.eq(
   "the next on comes on in it, in one command",
   sent(),
@@ -122,7 +128,7 @@ proxy("OFF")
 report(false)
 mark()
 proxy("ON")
--- Differs (wire): every on carries the light's color, here its own.
+T.differs("once the light has reported on, the next on carries no kept color", R_WIRE)
 T.eq("once the light has reported on, the next on comes on in the light's own color", colorOf(sent()[1]), GREEN_SENT)
 report(true, GREEN_RGB)
 
@@ -132,7 +138,7 @@ report(false)
 proxy("SET_COLOR_TARGET", GREEN)
 mark()
 proxy("SET_LEVEL", { LEVEL = 40 })
--- Differs (wire).
+T.differs("a level carries it with the level", R_WIRE)
 T.eq(
   "a level carries it with the level",
   sent(),
@@ -148,7 +154,7 @@ T.eq("Toggle from off carries it", colorOf(sent()[1]), GREEN_SENT)
 report(true, GREEN_RGB)
 mark()
 proxy("SET_LEVEL", { LEVEL = 0 })
--- Differs (wire).
+T.differs("a level of 0 is still an off", R_WIRE)
 T.eq("a level of 0 is still an off", sent(), { { command = "off" } })
 report(false)
 
@@ -156,7 +162,7 @@ T.section("a color for a light that is on, or on its way on, goes out at once")
 mark()
 proxy("ON")
 proxy("SET_COLOR_TARGET", GREEN)
--- Differs (wire): the On carries the color, so the same color after it is nothing to send.
+T.differs("On, then a color before the light reports on: both go out", R_WIRE)
 T.eq(
   "On, then the same color before the light reports on: the On carries it",
   sent(),
@@ -165,7 +171,7 @@ T.eq(
 report(true, GREEN_RGB)
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
--- Differs: a color the light already shows is nothing to send.
+T.differs("on: a color goes out", R_SHOWN)
 T.eq("on: the color it shows sends nothing", sent(), {})
 
 T.section("turned on elsewhere, the light has had its next on")
@@ -176,7 +182,7 @@ report(true, { 255, 255, 255 })
 report(false)
 mark()
 proxy("ON")
--- Differs (wire): the On carries the color the light last showed, the white another hand set.
+T.differs("the on after it carries no kept color", R_WIRE)
 T.eq("the on after it comes on in the light's own color", colorOf(sent()[1]), { red = 255, green = 255, blue = 255 })
 
 T.section("an On that cannot reach the light leaves a color set while off kept")
@@ -213,13 +219,13 @@ mark()
 levelOn()
 clock = clock + 5
 proxy("SET_COLOR_TARGET", WHITE_PRESET)
--- Differs (wire).
+T.differs("its level carries the color set while off, and its own color is not sent", R_WIRE)
 T.eq(
   "its level carries the color set while off, and its own color is not sent",
   sent(),
   { { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 } }
 )
--- Differs: the proxy already shows the color the light keeps, so it is not told it again.
+T.differs("the proxy is told the color the light keeps", R_SHOWN)
 T.eq("the proxy still shows the color the light keeps", colorsTold(), {})
 report(true, GREEN_RGB)
 proxy("OFF")
@@ -229,7 +235,7 @@ levelOn()
 clock = clock + 5
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
--- Differs: the color is the one the On carried, so there is nothing to send.
+T.differs("a color naming no preset right after the level is a new pick", R_SHOWN)
 T.eq("the same color naming no preset right after the level sends nothing", #sent(), 0)
 report(true, GREEN_RGB)
 proxy("OFF")
@@ -319,32 +325,31 @@ report(true, GREEN_RGB)
 mark()
 proxy("SET_LEVEL", { LEVEL = 0 })
 proxy("SET_COLOR_TARGET", GREEN)
--- Differs (wire).
+T.differs("a level of 0, then a color: the same", R_WIRE)
 T.eq("a level of 0, then a color: the same", sent(), { { command = "off" } })
 report(false)
 
 T.section("a preset's color is told with its id and origin while the light shows it")
 mark()
 proxy("SET_COLOR_TARGET", GREEN_PRESET)
--- Differs, asked of the light library: a preset whose color the light already holds is told with the next on, not
--- at once.
+T.differs("set while off: told at once in its preset", R_PRESET)
 T.eq("set while off, in the color the light already holds: told with the next on", toldInOrder(), {})
 mark()
 proxy("ON")
 report(true, GREEN_RGB)
--- Differs (section 6): told as the command goes out.
+T.differs("and once the light shows it", R_SEND)
 T.eq("the On tells it in its preset", toldInOrder(), { "color=0.2/5.2", "level=100" })
 mark()
 proxy("SET_COLOR_TARGET", GREEN_PRESET)
 report(true, GREEN_RGB)
--- Differs: the proxy already shows it.
+T.differs("set while on: told in its preset once the light shows it", R_SHOWN)
 T.eq("set while on in the preset it shows: nothing to tell", toldInOrder(), {})
 proxy("OFF")
 report(false)
 mark()
 proxy("ON")
 report(true, GREEN_RGB)
--- Differs (section 6).
+T.differs("off, then on again in the same color: still told in its preset", R_SEND)
 T.eq("off, then on again in the same color: still told in its preset", toldInOrder(), { "color=0.2/5.2", "level=100" })
 mark()
 report(true, { 255, 0, 0 })
@@ -358,11 +363,12 @@ T.section("a level's brightness preset is told with the level, until another lev
 mark()
 proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 60, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 3 })
 report(true, { 255, 0, 0 })
--- Differs (section 6): told as the command goes out; the report of the level before it is history.
+T.differs("a level naming a preset: told in it", R_SEND)
 T.eq("a level naming a preset: told in it", toldInOrder(), { "level=60/3" })
 mark()
 proxy("SET_LEVEL", { LEVEL = 40 })
 report(true, { 255, 0, 0 })
+T.differs("a level naming none: told in none", R_SEND)
 T.eq("a level naming none: told in none", toldInOrder(), { "level=40" })
 
 T.section("a rebind forgets the device the light was bound to")
@@ -374,8 +380,7 @@ T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "
 report(false)
 mark()
 proxy("ON")
--- Differs (J1 and the device gate, accepted by the light library): the proxy still shows the color set before the
--- rebind, and the next on carries it to the new device.
+T.differs("and a color set before the rebind is not the next on's", R_REBIND)
 T.eq(
   "and a color set before the rebind is the one the proxy shows, which the next on carries",
   colorOf(sent()[1]),
@@ -402,7 +407,7 @@ do
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off", "supports_color" }) do
     T.eq(name .. " is True", caps[name], "True")
   end
-  -- Differs, asked of the light library: ramp_level follows dimming, so the build declares it True.
+  T.differs("ramp_level is False", R_RAMP)
   T.eq("ramp_level is True", caps.ramp_level, "True")
   for _, name in ipairs({
     "supports_default_on",
