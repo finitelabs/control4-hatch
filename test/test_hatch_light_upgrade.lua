@@ -1,7 +1,7 @@
 -- The v20261111 Night Light upgraded in place to the light library: over the proxy the release left, as a controller
--- holds it (hatch_v20261111_proxies.lua) and an empty store, the light reads the proxy's settings as they were, tells
--- no Brightness or Color Changed for a device that is as the proxy shows it, and tells its capabilities at most once,
--- with none again after a restart.
+-- holds it (hatch_v20261111_proxies.lua) and an empty store, the light reads the proxy's settings as they were. At
+-- each start, a restart after the upgrade included, it tells its capabilities once and its level and color once, at
+-- the values the proxy already shows, so nothing an integrator sees changes.
 --
 -- Run from the driver root:
 --   make test
@@ -99,8 +99,9 @@ T.eq("the click and hold rates", { s:clickRate(true), s:clickRate(false), s:hold
   5000,
   5000,
 })
-T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
-T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
+T.eq("the start tells the level once, at the 0 the proxy shows", { changes(proxy).level, proxy.level }, { 1, 0 })
+T.eq("and no color, as the light is off", changes(proxy).color, 0)
+T.eq("and its capabilities once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 T.eq("and online", proxy.online, true)
 
 T.section("then a Director restart")
@@ -110,8 +111,12 @@ for id, v in pairs(proxy.vars) do
 end
 proxy:restore()
 proxy = upgrade(vars, OFF)
-T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
-T.eq("and no capabilities", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 0)
+T.eq(
+  "the restart tells the level once again, at the 0 the proxy shows",
+  { changes(proxy).level, proxy.level },
+  { 1, 0 }
+)
+T.eq("and its capabilities once again", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 proxy:restore()
 
 T.section("a night light left on, in a preset's color, at half")
@@ -134,8 +139,15 @@ proxy = upgrade(lit, {
   blue = round(b * 255),
   brightnessPct = 50,
 })
-T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
-T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
+T.eq("the start tells the level once, at the 50 the proxy shows", { changes(proxy).level, proxy.level }, { 1, 50 })
+T.eq("and the color once", changes(proxy).color, 1)
+T.truthy(
+  "at the Aqua Morning the proxy shows",
+  proxy.color
+    and math.abs(tonumber(proxy.color.x) - AQUA.x) <= 0.01
+    and math.abs(tonumber(proxy.color.y) - AQUA.y) <= 0.01
+)
+T.eq("and its capabilities once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 proxy:restore()
 
 T.section("a night light whose proxy holds an integrator's own rates and Min and Max On")

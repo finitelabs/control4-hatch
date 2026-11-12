@@ -14,11 +14,17 @@ local T = require("testlib")
 -- This is the released Night Light's suite, run once against the light library. Each of its assertions the library
 -- answers differently is marked with T.differs, under the row that says why, and followed by what the light does now.
 
-local R_SEND = "section 6, hatch: Control4 is told a change as the command goes out"
-local R_WIRE = "the adapter's wire: every lit command carries its color and brightness, and a level of 0 is an Off"
-local R_SHOWN = "the library sends and tells only what changes: a value the light already shows is neither"
-local R_REBIND =
-  "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
+-- The library's rows for every released light driver, as the light library words them.
+local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
+local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
+-- Hatch's own rows: the design's section 6 for Hatch, and the Night Light's adapter.
+local R_SEND = "hatch: Control4 is told a change as the command goes out"
+local R_WIRE = "hatch: every lit Night Light command carries its color and brightness, and a level of 0 is an Off"
+-- Differences no integrator sees.
+local BENIGN = {
+  RETELL = "benign: a color the proxy already shows is told again or not",
+  SAME_COLOR = "benign: the color an On just carried is not sent again as its follow-up",
+}
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -111,7 +117,7 @@ T.eq("nothing is sent, so the light stays off", sent(), {})
 T.eq("the proxy is told it at once", colorsTold(), { 0.2 })
 mark()
 report(false)
-T.differs("a report while still off tells the kept color, not the dark one", R_SHOWN)
+T.differs("a report while still off tells the kept color, not the dark one", BENIGN.RETELL)
 T.eq("a report while still off leaves the kept color, not the dark one", colorsTold(), {})
 mark()
 proxy("ON")
@@ -169,8 +175,10 @@ T.eq(
 report(true, GREEN_RGB)
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
-T.differs("on: a color goes out", R_SHOWN)
-T.eq("on: the color it shows sends nothing", sent(), {})
+T.differs("on: a color goes out", R_WIRE)
+T.eq("on: the color it shows goes out again, with its brightness", sent(), {
+  { command = "setColor", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
+})
 
 T.section("turned on elsewhere, the light has had its next on")
 proxy("OFF")
@@ -223,7 +231,7 @@ T.eq(
   sent(),
   { { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 } }
 )
-T.differs("the proxy is told the color the light keeps", R_SHOWN)
+T.differs("the proxy is told the color the light keeps", BENIGN.RETELL)
 T.eq("the proxy still shows the color the light keeps", colorsTold(), {})
 report(true, GREEN_RGB)
 proxy("OFF")
@@ -233,7 +241,7 @@ levelOn()
 clock = clock + 5
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
-T.differs("a color naming no preset right after the level is a new pick", R_SHOWN)
+T.differs("a color naming no preset right after the level is a new pick", BENIGN.SAME_COLOR)
 T.eq("the same color naming no preset right after the level sends nothing", #sent(), 0)
 report(true, GREEN_RGB)
 proxy("OFF")

@@ -1,7 +1,7 @@
 -- The v20261111 Volume upgraded in place to the light library: over the proxy the release left, as a controller holds
--- it (hatch_v20261111_proxies.lua) and an empty store, the dimmer reads the proxy's settings as they were, tells no
--- Brightness Changed for a device that is as the proxy shows it, and tells its capabilities at most once, with none
--- again after a restart.
+-- it (hatch_v20261111_proxies.lua) and an empty store, the dimmer reads the proxy's settings as they were. At each
+-- start, a restart after the upgrade included, it tells its capabilities once and its level once, at the level the
+-- proxy already shows, so nothing an integrator sees changes.
 --
 -- Run from the driver root:
 --   make test
@@ -99,8 +99,9 @@ T.eq("the click and hold rates", { s:clickRate(true), s:clickRate(false), s:hold
   5000,
   5000,
 })
-T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
-T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
+T.eq("the start tells the level once, at the 0 the proxy shows", { changes(proxy).level, proxy.level }, { 1, 0 })
+T.eq("and no color", changes(proxy).color, 0)
+T.eq("and its capabilities once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 T.eq("and online", proxy.online, true)
 
 T.section("then a Director restart")
@@ -110,8 +111,12 @@ for id, v in pairs(proxy.vars) do
 end
 proxy:restore()
 proxy = upgrade(vars, OFF)
-T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
-T.eq("and no capabilities", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 0)
+T.eq(
+  "the restart tells the level once again, at the 0 the proxy shows",
+  { changes(proxy).level, proxy.level },
+  { 1, 0 }
+)
+T.eq("and its capabilities once again", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 proxy:restore()
 
 T.section("a volume left playing at 40")
@@ -122,8 +127,8 @@ end
 playing[1000], playing[1001], playing[1110] = "1", "40", "40"
 emptyStore()
 proxy = upgrade(playing, { online = true, on = true, brightnessPct = 40 })
-T.eq("no Brightness Changed", changes(proxy), { level = 0, color = 0 })
-T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
+T.eq("the start tells the level once, at the 40 the proxy shows", { changes(proxy).level, proxy.level }, { 1, 40 })
+T.eq("and its capabilities once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 proxy:restore()
 
 T.section("a volume whose proxy holds an integrator's own rates and Min and Max On")
