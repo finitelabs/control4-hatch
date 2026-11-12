@@ -100,7 +100,13 @@ T.eq("the click and hold rates", { s:clickRate(true), s:clickRate(false), s:hold
   5000,
 })
 T.eq("the start tells the level once, at the 0 the proxy shows", { changes(proxy).level, proxy.level }, { 1, 0 })
-T.eq("and no color, as the light is off", changes(proxy).color, 0)
+T.eq("and its color once", changes(proxy).color, 1)
+T.truthy(
+  "at the color the proxy shows",
+  proxy.color
+    and math.abs(tonumber(proxy.color.x) - 0.380438) <= 0.01
+    and math.abs(tonumber(proxy.color.y) - 0.376746) <= 0.01
+)
 T.eq("and its capabilities once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED"), 1)
 T.eq("and online", proxy.online, true)
 
