@@ -3,6 +3,10 @@
 --- The light owns no cloud link. It binds to the Hatch account's light connection, which tells it the device's
 --- state as UPDATE_STATE and takes its commands as ENTITY_COMMAND. Color crosses as RGB 0-255 and brightness as a
 --- percentage. The account sets the light's color and brightness together, so every lit command carries both.
+---
+--- The adapter keeps the color and brightness it last sent, so the account's answer is read as the command's own
+--- values. It keeps them from that send until the next one, or until the driver calls forget() with light:lost or
+--- light:reset. A report after those is read as the account tells it.
 
 require("lib.utils")
 
@@ -98,6 +102,11 @@ end
 
 function Adapter:refresh()
   self.ask()
+end
+
+--- Forgets the color and brightness last sent. The driver calls it with light:lost and light:reset.
+function Adapter:forget()
+  self.wire = nil
 end
 
 --- No device page.
