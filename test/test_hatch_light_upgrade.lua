@@ -27,13 +27,15 @@ Properties["Driver Status"] = ""
 
 local clock = F.virtualClock()
 
---- Load the driver over a proxy holding `variables`, start it, and have the account tell it `state`.
+--- Load the driver over a proxy holding `variables` and answering GET_SETUP with `setup`, start it, and have the
+--- account tell it `state`.
 --- @param variables table<integer, string>
 --- @param state table
+--- @param setup string|nil Default the release's.
 --- @return FakeProxy proxy
 --- @return Light light
-local function upgrade(variables, state)
-  local proxy = Fake.install(clock, { setup = release.setup, variables = variables, links = false })
+local function upgrade(variables, state, setup)
+  local proxy = Fake.install(clock, { setup = setup or release.setup, variables = variables, links = false })
   T.unload("^lib%.light", "^hatch%.")
   ShimDofileBuild(HERE .. "../drivers/hatch_light/driver.lua", "oss")
   OnDriverInit()
@@ -91,8 +93,12 @@ local s = light.settings
 T.eq("Min and Max On as the proxy held them", { s:onRange() }, { 1, 100 })
 T.eq("the Default On level", s:presetLevel(), 100)
 T.eq("the default rates", { s:defaultRate(), s:defaultColorRate() }, { 750, 750 })
--- The click and hold rates are not in this comparison: the Night Light has neither Button Links nor fades, so they
--- never apply.
+T.eq("the click and hold rates", { s:clickRate(true), s:clickRate(false), s:holdRate(true), s:holdRate(false) }, {
+  250,
+  750,
+  5000,
+  5000,
+})
 T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
 T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
 T.eq("and online", proxy.online, true)
@@ -130,6 +136,30 @@ proxy = upgrade(lit, {
 })
 T.eq("no Brightness or Color Changed", changes(proxy), { level = 0, color = 0 })
 T.truthy("the capabilities told at most once", proxy:count("DYNAMIC_CAPABILITIES_CHANGED") <= 1)
+proxy:restore()
+
+T.section("a night light whose proxy holds an integrator's own rates and Min and Max On")
+local edited = release.setup
+for key, value in pairs({
+  CLICK_RATE_UP = 400,
+  CLICK_RATE_DOWN = 900,
+  HOLD_RATE_UP = 3000,
+  HOLD_RATE_DOWN = 4000,
+  MIN_ON_LEVEL = 10,
+  MAX_ON_LEVEL = 90,
+}) do
+  edited = edited:gsub("<" .. key .. ">%d+</" .. key .. ">", "<" .. key .. ">" .. value .. "</" .. key .. ">", 1)
+end
+emptyStore()
+proxy, light = upgrade(release.variables, OFF, edited)
+s = light.settings
+T.eq("the light takes Min and Max On from the proxy", { s:onRange() }, { 10, 90 })
+T.eq("and the click and hold rates", { s:clickRate(true), s:clickRate(false), s:holdRate(true), s:holdRate(false) }, {
+  400,
+  900,
+  3000,
+  4000,
+})
 proxy:restore()
 
 T.finish()
