@@ -23,7 +23,6 @@ local R_WIRE = "hatch: every lit Night Light command carries its color and brigh
 -- Differences no integrator sees.
 local BENIGN = {
   RETELL = "benign: a color the proxy already shows is told again or not",
-  SAME_COLOR = "benign: the color an On just carried is not sent again as its follow-up",
 }
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
@@ -168,9 +167,12 @@ proxy("ON")
 proxy("SET_COLOR_TARGET", GREEN)
 T.differs("On, then a color before the light reports on: both go out", R_WIRE)
 T.eq(
-  "On, then the same color before the light reports on: the On carries it",
+  "On, then the same color before the light reports on: both go out, each with its color and brightness",
   sent(),
-  { { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 } }
+  {
+    { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
+    { command = "setColor", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
+  }
 )
 report(true, GREEN_RGB)
 mark()
@@ -231,8 +233,7 @@ T.eq(
   sent(),
   { { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 } }
 )
-T.differs("the proxy is told the color the light keeps", BENIGN.RETELL)
-T.eq("the proxy still shows the color the light keeps", colorsTold(), {})
+T.eq("the proxy is told the color the light keeps", colorsTold(), { 0.2 })
 report(true, GREEN_RGB)
 proxy("OFF")
 report(false)
@@ -241,8 +242,7 @@ levelOn()
 clock = clock + 5
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
-T.differs("a color naming no preset right after the level is a new pick", BENIGN.SAME_COLOR)
-T.eq("the same color naming no preset right after the level sends nothing", #sent(), 0)
+T.eq("a color naming no preset right after the level is a new pick", #sent(), 1)
 report(true, GREEN_RGB)
 proxy("OFF")
 report(false)
