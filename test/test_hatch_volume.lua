@@ -106,6 +106,54 @@ mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
 T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
 
+-- ─── What On plays, and at what volume ─────────────────────────────────────
+-- These pin the released volume's turn-on before it moves to the light library.
+
+--- Each ENTITY_COMMAND body sent to the Hatch driver since the mark.
+local function bodies()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == COORD and t.command == "ENTITY_COMMAND" then
+      out[#out + 1] = DeserializeSafe(t.params.body) or {}
+    end
+  end
+  return out
+end
+
+ReceivedFromProxy(COORD, "UPDATE_STATE", {
+  sounds = SerializeSafe({ { id = 7, title = "Rain" } }),
+  favorites = SerializeSafe({ { id = 3, name = "Bedtime", steps = { { sound = { v = 13107 } } } } }),
+  state = SerializeSafe({ online = true, on = false, brightnessPct = 35 }),
+})
+
+T.section("a sound's start carries no volume, as the proxy holds no Default On level, and a level from off carries it")
+Properties["Turn On Plays"] = "Sound: Rain"
+mark()
+proxy("ON")
+T.eq("an ON: the sound, with no volume, so the Hatch keeps its own", bodies(), { { command = "on", soundId = 7 } })
+report(false, 35)
+mark()
+proxy("SET_LEVEL", { LEVEL = 60 })
+T.eq("a level from off: the sound at that level", bodies(), { { command = "on", soundId = 7, brightness = 60 } })
+report(true, 60)
+
+T.section("a favorite's ON carries no volume, and its level shows when the Hatch driver tells it")
+report(false, 35)
+Properties["Turn On Plays"] = "Favorite: Bedtime"
+mark()
+proxy("ON")
+T.eq("the favorite alone", bodies(), { { command = "on", favoriteId = 3 } })
+T.eq("the proxy is told no level yet", toldInOrder(), {})
+report(true, 20)
+T.eq("then the favorite's own", toldInOrder(), { "online=true", "level=20" })
+
+T.section("ON while playing starts the chosen favorite again")
+mark()
+proxy("ON")
+T.eq("the favorite again, which restarts it", bodies(), { { command = "on", favoriteId = 3 } })
+report(false, 20)
+Properties["Turn On Plays"] = ""
+
 T.section("driver.xml declares only what the volume does")
 do
   local f = assert(io.open(HERE .. "../drivers/hatch_volume/driver.xml"))
