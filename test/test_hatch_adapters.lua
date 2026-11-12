@@ -117,6 +117,27 @@ report = light:report({ online = true, on = true, red = 255, green = 0, blue = 0
 T.eq("at the account's level", report.level, 0.5)
 T.falsy("not the command's color", report.color == RED)
 
+T.section("the night light: the contract's cases, on the account's wire")
+local cases = {}
+for _, c in ipairs(require("light_contract_cases").list) do
+  cases[c.name] = c
+end
+T.eq(
+  "an off is an off",
+  sent(light, cases["an off sets the level, with level the level kept"].commands[1].command),
+  { command = "off" }
+)
+do
+  local held = cases["a color for an off light on a hold device is held, and the next on carries it"]
+  local body = sent(light, held.commands[1].command)
+  local r, g, b = Color.xyToRGB(held.commands[1].command.color.x, held.commands[1].command.color.y)
+  T.eq(
+    "the next on after a held color comes on in it, at its level, in one command",
+    body,
+    { command = "on", red = round(r * 255), green = round(g * 255), blue = round(b * 255), brightness = 100 }
+  )
+end
+
 T.section("the night light: refresh asks the account")
 light:refresh()
 T.eq("once", asked, 1)
@@ -189,6 +210,13 @@ T.section("the volume: after forget, the volume sent is read as the account tell
 sent(volume, { level = 0.404, setsLevel = true })
 volume:forget()
 T.eq("at the account's level", volume:report({ online = true, on = true, brightnessPct = 40 }).level, 0.4)
+
+T.section("the volume: the contract's cases, on the account's wire")
+T.eq(
+  "an off stops",
+  sent(volume, cases["an off sets the level, with level the level kept"].commands[1].command),
+  { command = "off" }
+)
 
 T.section("the volume's facts")
 T.eq("a dimmer with no color", { VolumeAdapter.DEVICE.dims, VolumeAdapter.DEVICE.color }, { true, false })
