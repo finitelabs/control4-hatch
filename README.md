@@ -257,8 +257,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - On while the Hatch Volume plays a sound keeps it playing, where it used to
   start the chosen favorite again.
 - After a driver restart or a reconnect the Hatch Night Light and Hatch Volume
-  report their brightness and color to Control4 as they find them, even when
-  they have not changed.
+  report their brightness, and the Night Light its color, to Control4 as they
+  find them, even when they have not changed.
 - A command for the brightness or color the Hatch Night Light and Hatch Volume
   already show no longer fires a change event in Control4 programming.
 - The Hatch Night Light and Hatch Volume answer brightness queries with the
