@@ -18,6 +18,13 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Removed
 -->
 
+## Unreleased
+
+### Fixed
+
+- Fixed the Hatch Night Light sometimes going to its old brightness when its
+  color is changed right after its level.
+
 ## v20261111 - 2026-11-11
 
 <!-- #ifdef DRIVERCENTRAL -->
