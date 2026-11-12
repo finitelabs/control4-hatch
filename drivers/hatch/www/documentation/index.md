@@ -368,8 +368,7 @@ from Finite Labs LLC.
 
 If you have any questions or issues integrating these drivers with Control4 or
 your Hatch devices, you can contact us at
-[driver-support@finitelabs.com](mailto:driver-support@finitelabs.com) or
-call/text us at [+1 (949) 371-5805](tel:+19493715805).
+[driver-support@finitelabs.com](mailto:driver-support@finitelabs.com).
 
 <!-- #else -->
 
