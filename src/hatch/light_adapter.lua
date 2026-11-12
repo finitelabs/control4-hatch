@@ -66,12 +66,15 @@ local function near(sent, reported)
   return reported ~= nil and math.abs(sent - reported) <= 1
 end
 
---- Puts a command on the wire: an off, or the color and brightness the light comes on in or changes to.
+--- Puts a command on the wire: an off, or the color and brightness the light comes on in or changes to. The light
+--- takes no color while off, so a command that leaves it off sends nothing.
 --- @param cmd LightCommand
 --- @return nil
 function Adapter:send(cmd)
   if not cmd.on then
-    self.sendBody({ command = "off" })
+    if cmd.setsLevel then
+      self.sendBody({ command = "off" })
+    end
     return
   end
   local r, g, b = Color.xyToRGB(cmd.color.x, cmd.color.y)

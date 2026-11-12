@@ -60,7 +60,9 @@ end
 --- @return LightRest|nil rest The favorite's own volume, when one starts.
 function Adapter:send(cmd)
   if not cmd.on then
-    self.sendBody({ command = "off" })
+    if cmd.setsLevel then
+      self.sendBody({ command = "off" })
+    end
     return nil
   end
   local pct = InRange(round(cmd.level * 100), 1, 100)
