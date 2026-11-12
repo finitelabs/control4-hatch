@@ -243,6 +243,21 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Removed
 -->
 
+## Unreleased
+
+### Fixed
+
+- Fixed the Hatch Night Light sometimes going to its old brightness when its
+  color is changed right after its level.
+
+### Changed
+
+- Changed the Hatch Night Light and Hatch Volume to show a change in Control4 as
+  soon as it is sent, and to put it right within 5 seconds if Hatch does not
+  take it.
+- Changed On on the Hatch Volume while a sound plays to keep it playing, where
+  it used to start the chosen favorite again.
+
 ## v20261111 - 2026-11-11
 
 ### Fixed

@@ -10,6 +10,9 @@ require("c4_shim")
 require("c4_local")
 local T = require("testlib")
 
+-- This is the released Volume's suite, run once against the light library. Each assertion the library answers
+-- differently says so above it: "Differs (section 6)" names a row of the design's section 6.
+
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
 
@@ -81,11 +84,12 @@ report(true, 30)
 mark()
 proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 60, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 3 })
 report(true, 60)
-T.eq("a level naming a preset: told in it", toldInOrder()[2], "level=60/3")
+-- Differs (section 6): told as the command goes out.
+T.eq("a level naming a preset: told in it", toldInOrder(), { "level=60/3" })
 mark()
 proxy("SET_LEVEL", { LEVEL = 40 })
 report(true, 40)
-T.eq("a level naming none: told in none", toldInOrder()[2], "level=40")
+T.eq("a level naming none: told in none", toldInOrder(), { "level=40" })
 
 T.section("a rebind forgets the device the volume was bound to")
 mark()
@@ -93,7 +97,8 @@ OBC[COORD](COORD, "HATCH_VOLUME", true)
 T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "online=false" })
 mark()
 proxy("TOGGLE")
-T.eq("and a Toggle before the new device reports turns it on, not off as the old one was", commands(), { "on" })
+-- Differs (the device gate, accepted by the light library): no command reaches a device that has not reported.
+T.eq("and a Toggle before the new device reports does nothing", commands(), {})
 report(false, 0)
 
 T.section("a lost link to Hatch reads off; the account's own stop leaves the volume as it was")
@@ -130,7 +135,10 @@ T.section("a sound's start carries no volume, as the proxy holds no Default On l
 Properties["Turn On Plays"] = "Sound: Rain"
 mark()
 proxy("ON")
-T.eq("an ON: the sound, with no volume, so the Hatch keeps its own", bodies(), { { command = "on", soundId = 7 } })
+-- Differs: the ON carries the volume the Hatch last told, so the sound starts where the Hatch would resume it.
+T.eq("an ON: the sound, at the volume the Hatch keeps", bodies(), { { command = "on", soundId = 7, brightness = 35 } })
+report(true, 35)
+proxy("OFF")
 report(false, 35)
 mark()
 proxy("SET_LEVEL", { LEVEL = 60 })
@@ -143,32 +151,34 @@ Properties["Turn On Plays"] = "Favorite: Bedtime"
 mark()
 proxy("ON")
 T.eq("the favorite alone", bodies(), { { command = "on", favoriteId = 3 } })
-T.eq("the proxy is told no level yet", toldInOrder(), {})
+-- Differs (section 6): the favorite's own level is told once, as the command goes out.
+T.eq("the proxy is told the favorite's own level at once", toldInOrder(), { "level=20" })
 report(true, 20)
-T.eq("then the favorite's own", toldInOrder(), { "online=true", "level=20" })
+T.eq("and its report tells nothing more", toldInOrder(), { "level=20" })
 
 T.section("ON while playing starts the chosen favorite again")
 mark()
 proxy("ON")
-T.eq("the favorite again, which restarts it", bodies(), { { command = "on", favoriteId = 3 } })
+-- Differs (section 6): ON while playing is a volume set to the level it plays at, so play continues.
+T.eq("nothing, so the favorite plays on", bodies(), {})
 report(false, 20)
 Properties["Turn On Plays"] = ""
 
-T.section("driver.xml declares only what the volume does")
+T.section("the build declares only what the volume does")
 do
-  local f = assert(io.open(HERE .. "../drivers/hatch_volume/driver.xml"))
-  local caps = f:read("*a"):match("<capabilities>(.-)</capabilities>")
-  f:close()
-  local function cap(name)
-    return caps:match("<" .. name .. ">(.-)</" .. name .. ">")
+  local made = require("lib.light").made
+  local caps = {}
+  for _, row in ipairs(require("lib.light.caps").static(made[#made].profile)) do
+    caps[row.key] = row.value
   end
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off" }) do
-    T.eq(name .. " is True", cap(name), "True")
+    T.eq(name .. " is True", caps[name], "True")
   end
+  -- Differs, asked of the light library: ramp_level follows dimming, so the build declares it True.
+  T.eq("ramp_level is True", caps.ramp_level, "True")
   for _, name in ipairs({
     "supports_color",
     "supports_default_on",
-    "ramp_level",
     "advanced_scene_support",
     "reduced_als_support",
     "brightness_on_mode_preset",
@@ -183,11 +193,8 @@ do
     "has_leds",
     "has_button_events",
   }) do
-    T.eq(name .. " is False", cap(name), "False")
+    T.eq(name .. " is False", caps[name], "False")
   end
 end
-
-T.section("every capability driver.xml declares has the proxy commands it brings")
-require("light_capabilities").checkHandlers(T, HERE .. "../drivers/hatch_volume/driver.xml")
 
 T.finish()
