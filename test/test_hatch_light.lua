@@ -19,8 +19,6 @@ local R_WIRE = "the adapter's wire: every lit command carries its color and brig
 local R_SHOWN = "the library sends and tells only what changes: a value the light already shows is neither"
 local R_REBIND =
   "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
-local R_PRESET = "asked of the light library: a preset whose color the light already holds is told with the next on"
-local R_RAMP = "asked of the light library: ramp_level follows dimming"
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -332,13 +330,12 @@ report(false)
 T.section("a preset's color is told with its id and origin while the light shows it")
 mark()
 proxy("SET_COLOR_TARGET", GREEN_PRESET)
-T.differs("set while off: told at once in its preset", R_PRESET)
-T.eq("set while off, in the color the light already holds: told with the next on", toldInOrder(), {})
+T.eq("set while off: told at once in its preset", toldInOrder(), { "color=0.2/5.2" })
 mark()
 proxy("ON")
 report(true, GREEN_RGB)
 T.differs("and once the light shows it", R_SEND)
-T.eq("the On tells it in its preset", toldInOrder(), { "color=0.2/5.2", "level=100" })
+T.eq("the On tells its level, the preset's color told already", toldInOrder(), { "level=100" })
 mark()
 proxy("SET_COLOR_TARGET", GREEN_PRESET)
 report(true, GREEN_RGB)
@@ -407,10 +404,9 @@ do
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off", "supports_color" }) do
     T.eq(name .. " is True", caps[name], "True")
   end
-  T.differs("ramp_level is False", R_RAMP)
-  T.eq("ramp_level is True", caps.ramp_level, "True")
   for _, name in ipairs({
     "supports_default_on",
+    "ramp_level",
     "advanced_scene_support",
     "reduced_als_support",
     "brightness_on_mode_preset",

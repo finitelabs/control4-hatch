@@ -19,7 +19,6 @@ local R_ONPLAY = "section 6, hatch_volume: ON while playing is a volume set, so 
 local R_REBIND =
   "J1 and the device gate: a rebind keeps the color the proxy shows, and drops a command before the new device reports"
 local R_SOUND = "the adapter's wire: an On for a sound carries the volume the Hatch last told"
-local R_RAMP = "asked of the light library: ramp_level follows dimming"
 
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
@@ -184,11 +183,10 @@ do
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off" }) do
     T.eq(name .. " is True", caps[name], "True")
   end
-  T.differs("ramp_level is False", R_RAMP)
-  T.eq("ramp_level is True", caps.ramp_level, "True")
   for _, name in ipairs({
     "supports_color",
     "supports_default_on",
+    "ramp_level",
     "advanced_scene_support",
     "reduced_als_support",
     "brightness_on_mode_preset",
