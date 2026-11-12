@@ -16,6 +16,7 @@ local T = require("testlib")
 
 -- The library's rows for every released light driver, as the light library words them.
 local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
+local R_GET_LEVEL = "Get Light Level answers the level last told, during a ramp and a lapse too."
 local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
 -- Hatch's own rows: the design's section 6 for Hatch, and the Night Light's adapter.
 local R_SEND = "hatch: Control4 is told a change as the command goes out"
@@ -77,6 +78,17 @@ end
 
 local function proxy(command, params)
   ReceivedFromProxy(PROXY, command, params or {})
+end
+
+--- Each level a Get Light Level was answered with since the mark.
+local function answers()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == PROXY and t.command == "LIGHT_LEVEL" then
+      out[#out + 1] = tostring(t.params)
+    end
+  end
+  return out
 end
 
 --- The Hatch driver's state for the light: on in the color given, or off and dark.
@@ -166,14 +178,10 @@ mark()
 proxy("ON")
 proxy("SET_COLOR_TARGET", GREEN)
 T.differs("On, then a color before the light reports on: both go out", R_WIRE)
-T.eq(
-  "On, then the same color before the light reports on: both go out, each with its color and brightness",
-  sent(),
-  {
-    { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
-    { command = "setColor", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
-  }
-)
+T.eq("On, then the same color before the light reports on: both go out, each with its color and brightness", sent(), {
+  { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
+  { command = "setColor", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 },
+})
 report(true, GREEN_RGB)
 mark()
 proxy("SET_COLOR_TARGET", GREEN)
@@ -233,7 +241,8 @@ T.eq(
   sent(),
   { { command = "on", red = GREEN_SENT.red, green = GREEN_SENT.green, blue = GREEN_SENT.blue, brightness = 100 } }
 )
-T.eq("the proxy is told the color the light keeps", colorsTold(), { 0.2 })
+T.differs("the proxy is told the color the light keeps", BENIGN.RETELL)
+T.eq("the proxy still shows the color the light keeps", colorsTold(), {})
 report(true, GREEN_RGB)
 proxy("OFF")
 report(false)
@@ -401,6 +410,10 @@ report(true, { 255, 255, 255 })
 mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
 T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
+mark()
+proxy("GET_LIGHT_LEVEL")
+T.differs("Get Light Level while the account is stopped: unanswered", R_GET_LEVEL)
+T.eq("Get Light Level while the account is stopped: the level the light keeps", answers(), { "100" })
 
 T.section("the build declares only what the night light does")
 do

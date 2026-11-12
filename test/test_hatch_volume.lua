@@ -13,7 +13,9 @@ local T = require("testlib")
 -- This is the released Volume's suite, run once against the light library. Each of its assertions the library
 -- answers differently is marked with T.differs, under the row that says why, and followed by what the volume does now.
 
--- The library's row for every released light driver, as the light library words it.
+-- The library's rows for every released light driver, as the light library words them.
+local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
+local R_GET_LEVEL = "Get Light Level answers the level last told, during a ramp and a lapse too."
 local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
 -- Hatch's own rows: the design's section 6 for Hatch.
 local R_SEND = "hatch: Control4 is told a change as the command goes out"
@@ -90,6 +92,17 @@ local function toldInOrder()
   return out
 end
 
+--- Each level a Get Light Level was answered with since the mark.
+local function answers()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == PROXY and t.command == "LIGHT_LEVEL" then
+      out[#out + 1] = tostring(t.params)
+    end
+  end
+  return out
+end
+
 T.section("a level's brightness preset is told with the level, until another level command")
 report(true, 30)
 mark()
@@ -102,6 +115,17 @@ proxy("SET_LEVEL", { LEVEL = 40 })
 report(true, 40)
 T.differs("a level naming none: told in none", R_SEND)
 T.eq("a level naming none: told in none", toldInOrder(), { "level=40" })
+
+T.section("a level the proxy already shows, and Get Light Level")
+mark()
+proxy("SET_LEVEL", { LEVEL = 40 })
+report(true, 40)
+T.differs("a level the proxy shows: told again", R_SHOWN)
+T.eq("a level the proxy shows: told nothing", toldInOrder(), {})
+mark()
+proxy("GET_LIGHT_LEVEL")
+T.differs("Get Light Level: unanswered", R_GET_LEVEL)
+T.eq("Get Light Level: the level last told", answers(), { "40" })
 
 T.section("a rebind forgets the device the volume was bound to")
 mark()
@@ -122,6 +146,10 @@ report(true, 40)
 mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
 T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
+mark()
+proxy("GET_LIGHT_LEVEL")
+T.differs("Get Light Level while the account is stopped: unanswered", R_GET_LEVEL)
+T.eq("Get Light Level while the account is stopped: the level the volume keeps", answers(), { "40" })
 
 -- ─── What On plays, and at what volume ─────────────────────────────────────
 -- These pin the released volume's turn-on before it moves to the light library.
