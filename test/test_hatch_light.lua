@@ -18,7 +18,7 @@ local T = require("testlib")
 local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
 local R_GET_LEVEL = "Get Light Level answers the level last told, during a ramp and a lapse too."
 local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
--- Hatch's own rows: the design's section 6 for Hatch, and the Night Light's adapter.
+-- Hatch's own rows: what changes for the Hatch lights, and the Night Light's adapter.
 local R_SEND = "hatch: Control4 is told a change as the command goes out"
 local R_WIRE = "hatch: every lit Night Light command carries its color and brightness, and a level of 0 is an Off"
 -- Differences no integrator sees.
@@ -344,7 +344,7 @@ T.differs("a level of 0, then a color: the same", R_WIRE)
 T.eq("a level of 0, then a color: the same", sent(), { { command = "off" } })
 report(false)
 
-T.section("a preset's color is told with its id and origin while the light shows it")
+T.section("a preset's color is told with its id and origin as the command goes out")
 mark()
 proxy("SET_COLOR_TARGET", GREEN_PRESET)
 T.eq("set while off: told at once in its preset", toldInOrder(), { "color=0.2/5.2" })
