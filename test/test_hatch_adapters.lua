@@ -68,8 +68,8 @@ T.eq(
   { command = "on", red = 255, green = 0, blue = 0, brightness = 50 }
 )
 T.eq(
-  "an On that resumes carries the level it resumes at, so the account never fills one in",
-  sent(light, { fromOff = true, level = 0.3, color = RED, setsLevel = true, setsColor = true }),
+  "an On in the color it kept still carries that color and its level, so the account never fills one in",
+  sent(light, { fromOff = true, level = 0.3, color = RED, setsLevel = true }),
   { command = "on", red = 255, green = 0, blue = 0, brightness = 30 }
 )
 
