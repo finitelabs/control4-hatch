@@ -1,7 +1,7 @@
 -- The v20261111 Volume upgraded in place to the light library: over the proxy the release left, as a controller holds
 -- it (hatch_v20261111_proxies.lua) and an empty store, the dimmer reads the proxy's settings as they were. At each
 -- start, a restart after the upgrade included, it tells its capabilities once and its level once, at the level the
--- proxy already shows, so nothing an integrator sees changes.
+-- proxy already shows.
 --
 -- Run from the driver root:
 --   make test

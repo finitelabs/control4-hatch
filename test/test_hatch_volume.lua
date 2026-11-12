@@ -17,7 +17,7 @@ local T = require("testlib")
 local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
 local R_GET_LEVEL = "Get Light Level answers the level last told, during a ramp and a lapse too."
 local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
--- Hatch's own rows: the design's section 6 for Hatch.
+-- Hatch's own rows: what changes for the Hatch Volume.
 local R_SEND = "hatch: Control4 is told a change as the command goes out"
 local R_FAVORITE = "hatch: a Volume favorite's volume is told once, as the command goes out"
 local R_ONPLAY = "hatch: ON while the Volume plays is a volume set, so play continues"
@@ -152,8 +152,6 @@ T.differs("Get Light Level while the account is stopped: unanswered", R_GET_LEVE
 T.eq("Get Light Level while the account is stopped: the level the volume keeps", answers(), { "40" })
 
 -- ─── What On plays, and at what volume ─────────────────────────────────────
--- These pin the released volume's turn-on before it moves to the light library.
-
 --- Each ENTITY_COMMAND body sent to the Hatch driver since the mark.
 local function bodies()
   local out = {}
@@ -171,7 +169,7 @@ ReceivedFromProxy(COORD, "UPDATE_STATE", {
   state = SerializeSafe({ online = true, on = false, brightnessPct = 35 }),
 })
 
-T.section("a sound's start carries no volume, as the proxy holds no Default On level, and a level from off carries it")
+T.section("a sound's start carries the volume the Hatch last told, and a level from off carries that level")
 Properties["Turn On Plays"] = "Sound: Rain"
 mark()
 proxy("ON")
@@ -185,7 +183,7 @@ proxy("SET_LEVEL", { LEVEL = 60 })
 T.eq("a level from off: the sound at that level", bodies(), { { command = "on", soundId = 7, brightness = 60 } })
 report(true, 60)
 
-T.section("a favorite's ON carries no volume, and its level shows when the Hatch driver tells it")
+T.section("a favorite's ON carries no volume, and its own level is told as the ON goes out")
 report(false, 35)
 Properties["Turn On Plays"] = "Favorite: Bedtime"
 mark()
@@ -197,7 +195,7 @@ report(true, 20)
 T.differs("then the favorite's own", R_FAVORITE)
 T.eq("and its report tells nothing more", toldInOrder(), { "level=20" })
 
-T.section("ON while playing starts the chosen favorite again")
+T.section("ON while playing sets the volume it plays at, so it plays on")
 mark()
 proxy("ON")
 T.differs("the favorite again, which restarts it", R_ONPLAY)
