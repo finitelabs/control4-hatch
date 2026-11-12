@@ -68,8 +68,8 @@ T.eq(
   { command = "on", red = 255, green = 0, blue = 0, brightness = 50 }
 )
 T.eq(
-  "an On that resumes still carries the level, so the account's last word is never used",
-  sent(light, { fromOff = true, level = 0.3, color = RED, setsColor = true }),
+  "an On that resumes carries the level it resumes at, so the account never fills one in",
+  sent(light, { fromOff = true, level = 0.3, color = RED, setsLevel = true, setsColor = true }),
   { command = "on", red = 255, green = 0, blue = 0, brightness = 30 }
 )
 
@@ -81,8 +81,11 @@ T.eq(
 )
 T.eq("the lowest level is 1 %", sent(light, { level = 0.001, color = BLUE, setsLevel = true }).brightness, 1)
 
-T.section("the night light: an off is an off")
-T.eq("off", sent(light, { on = false, level = 0.5, color = BLUE }), { command = "off" })
+T.section("the night light: an off is an off, and a command that leaves it off sends nothing")
+T.eq("off", sent(light, { on = false, level = 0.5, color = BLUE, setsLevel = true }), { command = "off" })
+local before = #bodies
+light:send(command({ on = false, level = 0.5, color = BLUE, setsColor = true }))
+T.eq("a color while off", #bodies, before)
 
 T.section("the night light: a report of what was sent is that command's level and color")
 sent(light, { fromOff = true, level = 0.5, color = RED, setsLevel = true, setsColor = true })
@@ -136,37 +139,37 @@ T.section("the volume: a level while playing sets the volume")
 local body, rest = sent(volume, { level = 0.4, setsLevel = true })
 T.eq("a volume", body, { command = "setBrightness", brightness = 40 })
 T.eq("and no rest", rest, nil)
-T.eq("ON while playing is a volume set too, so play continues", sent(volume, { level = 0.4 }), {
+T.eq("ON while playing is a volume set too, so play continues", sent(volume, { level = 0.5, setsLevel = true }), {
   command = "setBrightness",
-  brightness = 40,
+  brightness = 50,
 })
 
 T.section("the volume: an on from off starts what Turn On Plays names")
 target = { soundId = 7 }
-T.eq("a sound, at the level", sent(volume, { fromOff = true, level = 0.4 }), {
+T.eq("a sound, at the level", sent(volume, { fromOff = true, level = 0.4, setsLevel = true }), {
   command = "on",
   soundId = 7,
   brightness = 40,
 })
 target = nil
-T.eq("nothing chosen: the last sound, at the level", sent(volume, { fromOff = true, level = 0.4 }), {
+T.eq("nothing chosen: the last sound, at the level", sent(volume, { fromOff = true, level = 0.4, setsLevel = true }), {
   command = "on",
   brightness = 40,
 })
 
 T.section("the volume: a favorite applies its own volume, told as the command goes out")
 target = { favoriteId = 3, favorite = { steps = { { sound = { v = 13107 } } } } }
-body, rest = sent(volume, { fromOff = true, level = 0.4 })
+body, rest = sent(volume, { fromOff = true, level = 0.4, setsLevel = true })
 T.eq("the favorite, with no volume of the light's", body, { command = "on", favoriteId = 3 })
 T.eq("rests at the favorite's volume", rest, { level = 0.2 })
 report = volume:report({ online = true, on = true, brightnessPct = 20 })
 T.eq("and its report is that level", { report.on, report.level }, { true, 0.2 })
 target = { favoriteId = 4, favorite = { steps = {} } }
-body, rest = sent(volume, { fromOff = true, level = 0.4 })
+body, rest = sent(volume, { fromOff = true, level = 0.4, setsLevel = true })
 T.eq("a favorite whose volume is unknown rests nowhere", { body, rest }, { { command = "on", favoriteId = 4 } })
 
 T.section("the volume: an off stops, and a stopped report keeps the volume")
-T.eq("off", sent(volume, { on = false, level = 0.4 }), { command = "off" })
+T.eq("off", sent(volume, { on = false, level = 0.4, setsLevel = true }), { command = "off" })
 report = volume:report({ online = true, on = false, brightnessPct = 35 })
 T.eq("stopped at 35", { report.kind, report.on, report.level }, { "push", false, 0.35 })
 T.eq(
