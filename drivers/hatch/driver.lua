@@ -25,6 +25,7 @@ local bindings = require("lib.bindings")
 local Api = require("hatch.api")
 local Connection = require("hatch.connection")
 local Device = require("hatch.device")
+local Favorites = require("hatch.favorites")
 local updateSettings = require("lib.update-settings")
 --#ifdef DRIVERCENTRAL
 local drivercentral = require("lib.drivercentral")
@@ -274,25 +275,6 @@ local function handleMediaCommand(thing, body)
   end
 end
 
---- The volume a favorite will apply, read from the routine rather than imposed.
---- Lives in `steps[].sound.v` as a raw 0..65535 value; the sibling
---- `steps[].color.i` is the light's brightness, not volume. First enabled step
---- wins, since that is where a routine starts.
-local function favoriteVolumePct(fav)
-  if type(fav) ~= "table" then
-    return nil
-  end
-  for _, step in ipairs(fav.steps or {}) do
-    if type(step) == "table" and step.enabled ~= false and type(step.sound) == "table" then
-      local raw = tonumber(step.sound.v)
-      if raw and raw > 0 then
-        return Device.pctFromRaw(raw)
-      end
-    end
-  end
-  return nil
-end
-
 --- Volume-as-a-dimmer commands. Brightness maps straight to volume, on/off to
 --- play and stop. Setting brightness never starts playback: the Hatch accepts a
 --- volume change while stopped, so the level can be staged beforehand.
@@ -318,7 +300,7 @@ local function handleVolumeCommand(thing, body)
           break
         end
       end
-      local pct = favoriteVolumePct(fav)
+      local pct = Favorites.volumePct(fav)
       log:debug("Favorite %s volume resolved to %s", tostring(body.favoriteId), tostring(pct))
       if pct then
         stateByThing[thing] = stateByThing[thing] or {}

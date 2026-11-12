@@ -1,5 +1,8 @@
 -- Display labels for favorites, shared by every driver that lists them so the
--- sound machine and the volume dimmer cannot drift apart.
+-- sound machine and the volume dimmer cannot drift apart, and the volume a
+-- favorite applies.
+
+local Device = require("hatch.device")
 
 local Favorites = {}
 
@@ -86,6 +89,27 @@ function Favorites.byLabel(favorites, label)
   for index, candidate in ipairs(labels) do
     if candidate == label then
       return favorites[index]
+    end
+  end
+  return nil
+end
+
+--- The volume a favorite will apply, read from the routine rather than imposed.
+--- Lives in `steps[].sound.v` as a raw 0..65535 value; the sibling
+--- `steps[].color.i` is the light's brightness, not volume. First enabled step
+--- wins, since that is where a routine starts.
+--- @param favorite table|nil
+--- @return integer|nil pct
+function Favorites.volumePct(favorite)
+  if type(favorite) ~= "table" then
+    return nil
+  end
+  for _, step in ipairs(favorite.steps or {}) do
+    if type(step) == "table" and step.enabled ~= false and type(step.sound) == "table" then
+      local raw = tonumber(step.sound.v)
+      if raw and raw > 0 then
+        return Device.pctFromRaw(raw)
+      end
     end
   end
   return nil
