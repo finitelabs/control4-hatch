@@ -249,6 +249,8 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 - Fixed the Hatch Night Light sometimes going to its old brightness when its
   color is changed right after its level.
+- Fixed the Hatch Night Light sometimes coming on in its old color, instead of
+  one set while it was turning off.
 
 ### Changed
 
