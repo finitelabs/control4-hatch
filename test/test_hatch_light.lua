@@ -21,6 +21,7 @@ local R_REBIND = "A rebind to another device shows the light offline until the n
 -- Hatch's own rows: what changes for the Hatch lights, and the Night Light's adapter.
 local R_SEND = "hatch: Control4 is told a change as the command goes out"
 local R_WIRE = "hatch: every lit Night Light command carries its color and brightness, and a level of 0 is an Off"
+local R_OFF_HELD = "hatch: a color set as the Night Light goes off is held through Hatch's late reports"
 -- Differences no integrator sees.
 local BENIGN = {
   RETELL = "benign: a color the proxy already shows is told again or not",
@@ -342,6 +343,31 @@ proxy("SET_LEVEL", { LEVEL = 0 })
 proxy("SET_COLOR_TARGET", GREEN)
 T.differs("a level of 0, then a color: the same", R_WIRE)
 T.eq("a level of 0, then a color: the same", sent(), { { command = "off" } })
+report(false)
+
+T.section("an Off carries no color, and a late report of the color the light had while it goes is not news")
+local BLUE = { LIGHT_COLOR_TARGET_X = 0.15, LIGHT_COLOR_TARGET_Y = 0.1, LIGHT_COLOR_TARGET_MODE = 0 }
+report(true, GREEN_RGB)
+mark()
+proxy("OFF")
+proxy("SET_COLOR_TARGET", BLUE)
+T.eq("the Off goes out alone", sent(), { { command = "off" } })
+T.eq("the color is told once, for the next on", colorsTold(), { 0.15 })
+mark()
+report(true, GREEN_RGB)
+T.differs("a report from before the Off, lit in the old color, tells it", R_OFF_HELD)
+T.eq("a report from before the Off, lit in the old color, tells no color", colorsTold(), {})
+report(false)
+T.differs("and the off tells another", R_OFF_HELD)
+T.eq("nor does the off", colorsTold(), {})
+mark()
+proxy("ON")
+local lit = sent()[1] or {}
+T.eq("the next on comes on in the color held", lit.command, "on")
+T.differs("in the old color", R_OFF_HELD)
+T.check("in blue", (lit.blue or 0) > (lit.green or 0) and (lit.blue or 0) > (lit.red or 0), colorOf(lit))
+report(true, { lit.red or 0, lit.green or 0, lit.blue or 0 })
+proxy("OFF")
 report(false)
 
 T.section("a preset's color is told with its id and origin as the command goes out")
