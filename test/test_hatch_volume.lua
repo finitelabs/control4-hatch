@@ -10,6 +10,22 @@ require("c4_shim")
 require("c4_local")
 local T = require("testlib")
 
+-- This is the released Volume's suite, run once against the light library. Each of its assertions the library
+-- answers differently is marked with T.differs, under the row that says why, and followed by what the volume does now.
+
+-- The library's rows for every released light driver, as the light library words them.
+local R_SHOWN = "A command for the level or color the proxy shows tells nothing."
+local R_GET_LEVEL = "Get Light Level answers the level last told, during a ramp and a lapse too."
+local R_REBIND = "A rebind to another device shows the light offline until the new device reports."
+-- Hatch's own rows: what changes for the Hatch Volume.
+local R_SEND = "hatch: Control4 is told a change as the command goes out"
+local R_FAVORITE = "hatch: a Volume favorite's volume is told once, as the command goes out"
+local R_ONPLAY = "hatch: ON while the Volume plays is a volume set, so play continues"
+-- Differences no integrator sees.
+local BENIGN = {
+  SOUND_VOLUME = "benign: an On for a sound carries the volume the Hatch last told, where it would start anyway",
+}
+
 local HERE = debug.getinfo(1, "S").source:match("@(.*[/\\])") or "./"
 local PROXY, COORD = 5001, 5002
 
@@ -76,16 +92,40 @@ local function toldInOrder()
   return out
 end
 
+--- Each level a Get Light Level was answered with since the mark.
+local function answers()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == PROXY and t.command == "LIGHT_LEVEL" then
+      out[#out + 1] = tostring(t.params)
+    end
+  end
+  return out
+end
+
 T.section("a level's brightness preset is told with the level, until another level command")
 report(true, 30)
 mark()
 proxy("SET_BRIGHTNESS_TARGET", { LIGHT_BRIGHTNESS_TARGET = 60, LIGHT_BRIGHTNESS_TARGET_PRESET_ID = 3 })
 report(true, 60)
-T.eq("a level naming a preset: told in it", toldInOrder()[2], "level=60/3")
+T.differs("a level naming a preset: told in it", R_SEND)
+T.eq("a level naming a preset: told in it", toldInOrder(), { "level=60/3" })
 mark()
 proxy("SET_LEVEL", { LEVEL = 40 })
 report(true, 40)
-T.eq("a level naming none: told in none", toldInOrder()[2], "level=40")
+T.differs("a level naming none: told in none", R_SEND)
+T.eq("a level naming none: told in none", toldInOrder(), { "level=40" })
+
+T.section("a level the proxy already shows, and Get Light Level")
+mark()
+proxy("SET_LEVEL", { LEVEL = 40 })
+report(true, 40)
+T.differs("a level the proxy shows: told again", R_SHOWN)
+T.eq("a level the proxy shows: told nothing", toldInOrder(), {})
+mark()
+proxy("GET_LIGHT_LEVEL")
+T.differs("Get Light Level: unanswered", R_GET_LEVEL)
+T.eq("Get Light Level: the level last told", answers(), { "40" })
 
 T.section("a rebind forgets the device the volume was bound to")
 mark()
@@ -93,7 +133,8 @@ OBC[COORD](COORD, "HATCH_VOLUME", true)
 T.eq("the proxy is told offline, not the old device's state", toldInOrder(), { "online=false" })
 mark()
 proxy("TOGGLE")
-T.eq("and a Toggle before the new device reports turns it on, not off as the old one was", commands(), { "on" })
+T.differs("and a Toggle before the new device reports turns it on, not off as the old one was", R_REBIND)
+T.eq("and a Toggle before the new device reports does nothing", commands(), {})
 report(false, 0)
 
 T.section("a lost link to Hatch reads off; the account's own stop leaves the volume as it was")
@@ -105,17 +146,74 @@ report(true, 40)
 mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
 T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
+mark()
+proxy("GET_LIGHT_LEVEL")
+T.differs("Get Light Level while the account is stopped: unanswered", R_GET_LEVEL)
+T.eq("Get Light Level while the account is stopped: the level the volume keeps", answers(), { "40" })
 
-T.section("driver.xml declares only what the volume does")
+-- ─── What On plays, and at what volume ─────────────────────────────────────
+--- Each ENTITY_COMMAND body sent to the Hatch driver since the mark.
+local function bodies()
+  local out = {}
+  for _, t in ipairs(told) do
+    if t.id == COORD and t.command == "ENTITY_COMMAND" then
+      out[#out + 1] = DeserializeSafe(t.params.body) or {}
+    end
+  end
+  return out
+end
+
+ReceivedFromProxy(COORD, "UPDATE_STATE", {
+  sounds = SerializeSafe({ { id = 7, title = "Rain" } }),
+  favorites = SerializeSafe({ { id = 3, name = "Bedtime", steps = { { sound = { v = 13107 } } } } }),
+  state = SerializeSafe({ online = true, on = false, brightnessPct = 35 }),
+})
+
+T.section("a sound's start carries the volume the Hatch last told, and a level from off carries that level")
+Properties["Turn On Plays"] = "Sound: Rain"
+mark()
+proxy("ON")
+T.differs("an ON: the sound, with no volume, so the Hatch keeps its own", BENIGN.SOUND_VOLUME)
+T.eq("an ON: the sound, at the volume the Hatch keeps", bodies(), { { command = "on", soundId = 7, brightness = 35 } })
+report(true, 35)
+proxy("OFF")
+report(false, 35)
+mark()
+proxy("SET_LEVEL", { LEVEL = 60 })
+T.eq("a level from off: the sound at that level", bodies(), { { command = "on", soundId = 7, brightness = 60 } })
+report(true, 60)
+
+T.section("a favorite's ON carries no volume, and its own level is told as the ON goes out")
+report(false, 35)
+Properties["Turn On Plays"] = "Favorite: Bedtime"
+mark()
+proxy("ON")
+T.eq("the favorite alone", bodies(), { { command = "on", favoriteId = 3 } })
+T.differs("the proxy is told no level yet", R_FAVORITE)
+T.eq("the proxy is told the favorite's own level at once", toldInOrder(), { "level=20" })
+report(true, 20)
+T.differs("then the favorite's own", R_FAVORITE)
+T.eq("and its report tells nothing more", toldInOrder(), { "level=20" })
+
+T.section("ON while playing sets the volume it plays at, so it plays on")
+mark()
+proxy("ON")
+T.differs("the favorite again, which restarts it", R_ONPLAY)
+T.eq("a volume set at the level it plays at, so the favorite plays on", bodies(), {
+  { command = "setBrightness", brightness = 20 },
+})
+report(false, 20)
+Properties["Turn On Plays"] = ""
+
+T.section("the build declares only what the volume does")
 do
-  local f = assert(io.open(HERE .. "../drivers/hatch_volume/driver.xml"))
-  local caps = f:read("*a"):match("<capabilities>(.-)</capabilities>")
-  f:close()
-  local function cap(name)
-    return caps:match("<" .. name .. ">(.-)</" .. name .. ">")
+  local made = require("lib.light").made
+  local caps = {}
+  for _, row in ipairs(require("lib.light.caps").static(made[#made].profile)) do
+    caps[row.key] = row.value
   end
   for _, name in ipairs({ "dimmer", "set_level", "supports_target", "on_off" }) do
-    T.eq(name .. " is True", cap(name), "True")
+    T.eq(name .. " is True", caps[name], "True")
   end
   for _, name in ipairs({
     "supports_color",
@@ -135,11 +233,8 @@ do
     "has_leds",
     "has_button_events",
   }) do
-    T.eq(name .. " is False", cap(name), "False")
+    T.eq(name .. " is False", caps[name], "False")
   end
 end
-
-T.section("every capability driver.xml declares has the proxy commands it brings")
-require("light_capabilities").checkHandlers(T, HERE .. "../drivers/hatch_volume/driver.xml")
 
 T.finish()

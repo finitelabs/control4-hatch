@@ -12,7 +12,9 @@
 -- (HATCH_VOLUME), receives volume/playing as UPDATE_STATE, and sends actions
 -- back as ENTITY_COMMAND. Keeping both directions in the driver is the point:
 -- the coordinator knows which side a change came from and declines to echo its
--- own writes, which Programming has no way to express.
+-- own writes, which Programming has no way to express. The dimmer is the
+-- light_v2 proxy on binding 5001, run by the light library (lib.light) through
+-- the volume adapter (src/hatch/volume_adapter.lua).
 
 require("lib.utils")
 require("drivers-common-public.global.handlers")
@@ -31,7 +33,9 @@ local supportCode = require("lib.support-code")
 local diagnostics = require("lib.diagnostics")
 --#endif
 
-local PROXY_BINDING = 5001
+local Light = require("lib.light")
+local VolumeAdapter = require("hatch.volume_adapter")
+
 local COORD_BINDING = 5002
 
 --- Prefixes distinguishing the two kinds of entry in the "Turn On Plays" list,
@@ -46,19 +50,6 @@ local favorites = {}
 
 gInitialized = false
 
---- Last state pushed by the coordinator, so TOGGLE and ON can reason about
---- whether anything is playing and what level to restore.
-local volumeState = {
-  -- Pessimistic until the coordinator hands the device over: reporting a load
-  -- as reachable before then makes Navigator accept commands that go nowhere.
-  online = false,
-  on = false,
-  brightnessPct = 0,
-}
-
--- The brightness preset the last SET_BRIGHTNESS_TARGET named, told with the level; any other level command clears it.
-local brightnessPresetId = nil
-
 --------------------------------------------------------------------------------
 -- Coordinator link
 --------------------------------------------------------------------------------
@@ -67,21 +58,9 @@ local function entityCommand(body)
   SendToProxy(COORD_BINDING, "ENTITY_COMMAND", { body = SerializeSafe(body) }, "NOTIFY")
 end
 
---------------------------------------------------------------------------------
--- light_v2 feedback
---------------------------------------------------------------------------------
-
-local function notifyBrightness(pct)
-  SendToProxy(PROXY_BINDING, "LIGHT_BRIGHTNESS_CHANGED", {
-    LIGHT_BRIGHTNESS_CURRENT = tonumber(pct) or 0,
-    LIGHT_BRIGHTNESS_CURRENT_PRESET_ID = brightnessPresetId,
-  }, "NOTIFY")
-end
-
---- Tell the proxy the load is reachable. Without it Navigator grays the dimmer
---- out however correct its brightness reports are.
-local function notifyOnline(online)
-  SendToProxy(PROXY_BINDING, "ONLINE_CHANGED", { STATE = online and true or false }, "NOTIFY")
+--- Ask the coordinator for the device's state.
+local function refresh()
+  SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
 end
 
 --------------------------------------------------------------------------------
@@ -141,19 +120,8 @@ local function updatePlayList()
   C4:UpdatePropertyList("Turn On Plays", itemStr, keep)
 end
 
---- The light proxy's Default On (preset) level, used as the starting volume for
---- a plain sound. Favorites carry their own volume and ignore this.
-local function presetLevel()
-  local proxyId = tonumber(C4:GetProxyDevices())
-  local level = proxyId and tonumber(C4:GetDeviceVariable(proxyId, 1006))
-  if level and level > 0 then
-    return level
-  end
-  return nil
-end
-
 --- Resolve the installer's choice to something the coordinator can play.
---- @return table|nil body extra ENTITY_COMMAND fields, or nil to resume the last sound
+--- @return HatchVolumeTarget|nil target What On plays, or nil to resume the last sound.
 local function turnOnTarget()
   local choice = Properties["Turn On Plays"]
   if not choice or choice == "" or choice == constants.SELECT_OPTION then
@@ -161,7 +129,7 @@ local function turnOnTarget()
     -- the account has no favorites at all.
     local first = favorites[1]
     if first and first.id then
-      return { favoriteId = first.id }
+      return { favoriteId = first.id, favorite = first }
     end
     return nil
   end
@@ -169,7 +137,7 @@ local function turnOnTarget()
   if favLabel then
     for index, label in ipairs(Favorites.labels(favorites)) do
       if Favorites.listSafe(label) == favLabel then
-        return { favoriteId = favorites[index].id }
+        return { favoriteId = favorites[index].id, favorite = favorites[index] }
       end
     end
     return nil
@@ -184,6 +152,19 @@ local function turnOnTarget()
   end
   return nil
 end
+
+local volume = VolumeAdapter:new({ send = entityCommand, refresh = refresh, target = turnOnTarget })
+
+--- The volume: a dimmer with no color and no fades. No Button Links, scenes or on modes, and an ON resumes the
+--- device's own volume.
+--- @type LightProfile
+local PROFILE = {
+  api = Light.API,
+  dims = true,
+  known = true,
+}
+
+local light = Light.new(volume, PROFILE)
 
 local function applyState(tParams)
   local newSounds = DeserializeSafe(Select(tParams, "sounds"))
@@ -205,172 +186,29 @@ local function applyState(tParams)
   if type(state) ~= "table" then
     return
   end
-  volumeState.online = state.online ~= false
-  volumeState.on = state.on == true
-  volumeState.brightnessPct = tonumber(state.brightnessPct) or volumeState.brightnessPct
-
-  notifyOnline(volumeState.online)
-  -- Report 0 while stopped so the load reads as off, but keep the last real
-  -- volume in volumeState so ON can resume at it rather than jumping to full.
-  notifyBrightness(volumeState.on and volumeState.brightnessPct or 0)
-  UpdateProperty("Driver Status", volumeState.online and "Connected" or "Device offline")
-end
-
---------------------------------------------------------------------------------
--- Proxy command handlers (light_v2 -> coordinator)
---------------------------------------------------------------------------------
-
-function RFP.ON(idBinding)
-  if idBinding ~= PROXY_BINDING then
+  local online = state.online ~= false
+  UpdateProperty("Driver Status", online and "Connected" or "Device offline")
+  if not online then
+    -- A device Hatch has lost reads off.
+    volume:forget()
+    light:lost(false)
     return
   end
-  brightnessPresetId = nil
-  local body = turnOnTarget() or {}
-  body.command = "on"
-  -- A sound carries no volume of its own, so start it at the dimmer's preset.
-  -- A favorite brings its own volume and color, so leave it alone.
-  if not body.favoriteId then
-    body.brightness = presetLevel()
-  end
-  log:debug(
-    "Turn on: favorite=%s sound=%s volume=%s",
-    tostring(body.favoriteId),
-    tostring(body.soundId),
-    tostring(body.brightness)
-  )
-  entityCommand(body)
+  light:declare(VolumeAdapter.DEVICE)
+  light:report(volume:report(state))
 end
 
-function RFP.OFF(idBinding)
-  if idBinding ~= PROXY_BINDING then
-    return
-  end
-  brightnessPresetId = nil
-  entityCommand({ command = "off" })
-end
-
-function RFP.DYNAMIC_ON(idBinding)
-  RFP.ON(idBinding)
-end
-
-function RFP.DYNAMIC_OFF(idBinding)
-  RFP.OFF(idBinding)
-end
-
-function RFP.TOGGLE(idBinding)
-  if idBinding ~= PROXY_BINDING then
-    return
-  end
-  brightnessPresetId = nil
-  if volumeState.on then
-    entityCommand({ command = "off" })
-  else
-    local body = turnOnTarget() or {}
-    body.command = "on"
-    if not body.favoriteId then
-      body.brightness = presetLevel()
-    end
-    entityCommand(body)
+RFP[COORD_BINDING] = function(_idBinding, strCommand, tParams)
+  if strCommand == "UPDATE_STATE" then
+    applyState(tParams)
+  elseif strCommand == "UPDATE_DISCONNECT" then
+    UpdateProperty("Driver Status", "Coordinator offline")
+    -- A lost link to Hatch reads off. The account's own stop leaves the volume as it was, and its next report tells
+    -- it.
+    volume:forget()
+    light:lost(toboolean(Select(tParams, "suspended")))
   end
 end
-
-local function setBrightness(idBinding, level)
-  if idBinding ~= PROXY_BINDING then
-    return
-  end
-  local pct = tonumber(level) or 0
-  if pct < 0 then
-    pct = 0
-  elseif pct > 100 then
-    pct = 100
-  end
-  -- Ramping to 0 is the user turning it off, not asking for silence. Leaving
-  -- the volume alone means the next start is not silent.
-  if pct <= 0 then
-    entityCommand({ command = "off" })
-    return
-  end
-  -- Navigator turns a dimmer on by sending a level rather than ON, so a level
-  -- arriving while stopped IS the turn-on and has to start the chosen entry.
-  if not volumeState.on then
-    local body = turnOnTarget() or {}
-    body.command = "on"
-    if not body.favoriteId then
-      body.brightness = pct
-    end
-    entityCommand(body)
-    return
-  end
-  entityCommand({ command = "setBrightness", brightness = pct })
-end
-
-function RFP.GET_CONNECTED_STATE(idBinding)
-  if idBinding ~= PROXY_BINDING then
-    return
-  end
-  notifyOnline(volumeState.online)
-end
-
-function RFP.SET_LEVEL(idBinding, _strCommand, tParams)
-  brightnessPresetId = nil
-  setBrightness(idBinding, Select(tParams, "LEVEL"))
-end
-
-function RFP.SET_BRIGHTNESS_TARGET(idBinding, _strCommand, tParams)
-  if idBinding ~= PROXY_BINDING then
-    return
-  end
-  brightnessPresetId = tointeger(Select(tParams, "LIGHT_BRIGHTNESS_TARGET_PRESET_ID"))
-  setBrightness(idBinding, Select(tParams, "LIGHT_BRIGHTNESS_TARGET"))
-end
-
-function RFP.RAMP_TO_LEVEL(idBinding, _strCommand, tParams)
-  brightnessPresetId = nil
-  setBrightness(idBinding, Select(tParams, "LEVEL"))
-end
-
---------------------------------------------------------------------------------
--- Proxy command dispatch
---------------------------------------------------------------------------------
-
-function ReceivedFromProxy(idBinding, strCommand, tParams)
-  strCommand = strCommand or ""
-  tParams = tParams or {}
-
-  if idBinding == COORD_BINDING then
-    if strCommand == "UPDATE_STATE" then
-      applyState(tParams)
-    elseif strCommand == "UPDATE_DISCONNECT" then
-      volumeState.online = false
-      notifyOnline(false)
-      -- A lost link to Hatch reads off. The account's own stop leaves the volume as it was, and its next report tells
-      -- it.
-      if not toboolean(Select(tParams, "suspended")) then
-        volumeState.on = false
-        brightnessPresetId = nil
-        notifyBrightness(0)
-      end
-      UpdateProperty("Driver Status", "Coordinator offline")
-    end
-    return
-  end
-
-  local handler = RFP[strCommand]
-  if type(handler) == "function" then
-    local ok, err = pcall(handler, idBinding, strCommand, tParams)
-    if not ok then
-      log:warn("Hatch volume command '%s' error: %s", strCommand, tostring(err))
-      --#ifdef DRIVERCENTRAL
-      diagnostics:captureError(tostring(err), nil, "RFP." .. strCommand)
-      --#endif
-    end
-  end
-end
-
---#ifdef DRIVERCENTRAL
--- The vendored dispatcher this replaces is what reports a proxy command's error.
-ReceivedFromProxy = diagnostics:wrap(ReceivedFromProxy, "ReceivedFromProxy")
---#endif
 
 --------------------------------------------------------------------------------
 -- Lifecycle
@@ -400,28 +238,24 @@ function OnDriverLateInit()
   end
   gInitialized = true
   UpdateProperty("Driver Status", "Waiting for coordinator")
-  -- Declare offline before asking for state, so nothing reads the proxy as
-  -- reachable in the window before the coordinator answers.
-  notifyOnline(false)
-  SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
+  -- Offline until the coordinator answers the ask start makes.
+  light:start()
 end
 
 --#ifdef DRIVERCENTRAL
 OnDriverLateInit = diagnostics:wrapLateInit(OnDriverLateInit)
 --#endif
 
---- Announce reachability on bind and retract it on unbind, per light_v2.
+--- A binding change: the device bound next tells its own state, and the proxy keeps the level it shows until then.
 OBC = OBC or {}
 OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)
-  -- Forget the device: the one bound next tells its own state.
-  volumeState.online, volumeState.on, volumeState.brightnessPct = false, false, 0
-  brightnessPresetId = nil
-  -- At a controller start this runs before late init, which tells offline itself.
+  volume:forget()
+  -- At a controller start this runs before late init, whose start tells offline itself.
   if gInitialized then
-    notifyOnline(false)
+    light:lost(true)
   end
   if bIsBound then
-    SendToProxy(COORD_BINDING, "REFRESH_STATE", {}, "NOTIFY")
+    refresh()
   end
 end
 
