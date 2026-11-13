@@ -365,7 +365,11 @@ proxy("ON")
 local lit = sent()[1] or {}
 T.eq("the next on comes on in the color held", lit.command, "on")
 T.differs("in the old color", R_OFF_HELD)
-T.check("in blue", (lit.blue or 0) > (lit.green or 0) and (lit.blue or 0) > (lit.red or 0), colorOf(lit))
+T.check(
+  "in blue",
+  (lit.blue or 0) > (lit.green or 0) and (lit.blue or 0) > (lit.red or 0),
+  string.format("%d,%d,%d", lit.red or 0, lit.green or 0, lit.blue or 0)
+)
 report(true, { lit.red or 0, lit.green or 0, lit.blue or 0 })
 proxy("OFF")
 report(false)
