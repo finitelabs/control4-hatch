@@ -40,8 +40,6 @@ local state = {}
 local mutedVolume = nil
 local wasPlaying = false
 local reconciled = false
---- Defined below, but the conditionals need it before that point.
-local favoriteLabels
 Navigators = Navigators or {}
 Navigator = Navigator or {}
 
@@ -258,6 +256,12 @@ end
 
 local function notifyMute(muted)
   C4:SendToProxy(AMP_PROXY, "MUTE_CHANGED", { OUTPUT = AUDIO_OUTPUT, MUTE = muted and "true" or "false" }, "NOTIFY")
+end
+
+--- Display labels for the favorites list, indexed to line up with the favorites
+--- array. Shared with the volume dimmer so both render the same names.
+local function favoriteLabels()
+  return Favorites.labels(favorites)
 end
 
 --------------------------------------------------------------------------------
@@ -492,12 +496,6 @@ local function applyState(tParams)
     notifyVolume(state.volumePct)
   end
   UpdateProperty("Driver Status", state.online == false and "Device offline" or "Connected")
-end
-
---- Display labels for the favorites list, indexed to line up with the favorites
---- array. Shared with the volume dimmer so both render the same names.
-function favoriteLabels()
-  return Favorites.labels(favorites)
 end
 
 --------------------------------------------------------------------------------
