@@ -237,4 +237,26 @@ do
   end
 end
 
+T.section("a Director restart brings the Connected variable back at init")
+T.truthy("the volume has a Connected variable", Variables["Connected"] ~= nil)
+ShimRestartDirector()
+T.unload("^hatch", "^lib%.")
+ShimDofileBuild(HERE .. "../drivers/hatch_volume/driver.lua", "oss")
+OnDriverInit()
+T.truthy("its Connected variable is back at init, before the volume reports", Variables["Connected"] ~= nil)
+ShimLateInit()
+report(true, 20)
+T.eq("and it reads connected once the volume reports", Variables["Connected"], "1")
+
+T.section("an On right after an Off, before Hatch reports either, is told once each")
+mark()
+proxy("OFF")
+proxy("ON")
+-- Hatch reports late: the on from before both, the Off's, then the On's.
+report(true, 20)
+report(false, 0)
+report(true, 20)
+ShimFireTimers()
+T.eq("off and on, and not off and on again", toldInOrder(), { "level=0", "level=20" })
+
 T.finish()

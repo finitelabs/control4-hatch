@@ -24,6 +24,7 @@ require("drivers-common-public.global.timer")
 JSON = require("JSON")
 
 local log = require("lib.logging")
+local values = require("lib.values")
 local constants = require("constants")
 local Favorites = require("hatch.favorites")
 --#ifdef DRIVERCENTRAL
@@ -222,6 +223,7 @@ function OnDriverInit()
   log:setLogLevel(Properties["Log Level"])
   log:setLogMode(Properties["Log Mode"])
   log:trace("OnDriverInit()")
+  values:restoreValues()
 end
 
 function OnDriverLateInit()

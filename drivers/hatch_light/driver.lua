@@ -15,6 +15,7 @@ require("drivers-common-public.global.timer")
 JSON = require("JSON")
 
 local log = require("lib.logging")
+local values = require("lib.values")
 --#ifdef DRIVERCENTRAL
 local drivercentral = require("lib.drivercentral")
 local updateSettings = require("lib.update-settings")
@@ -102,6 +103,7 @@ function OnDriverInit()
   log:setLogLevel(Properties["Log Level"])
   log:setLogMode(Properties["Log Mode"])
   log:trace("OnDriverInit()")
+  values:restoreValues()
 end
 
 function OnDriverLateInit()
