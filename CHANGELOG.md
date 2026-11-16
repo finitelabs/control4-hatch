@@ -18,6 +18,32 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Removed
 -->
 
+## Unreleased
+
+### Fixed
+
+- Fixed the Hatch Night Light sometimes going to its old brightness when its
+  color is changed right after its level.
+- Fixed the Hatch Night Light sometimes coming on in its old color, instead of
+  one set while it was turning off.
+
+### Changed
+
+- The Hatch Night Light and Hatch Volume show a change in Control4 as soon as it
+  is sent, and put it right within 5 seconds if Hatch does not take it.
+- On while the Hatch Volume plays a sound keeps it playing, where it used to
+  start the chosen favorite again.
+- After a driver restart or a reconnect the Hatch Night Light and Hatch Volume
+  report their brightness, and the Night Light its color, to Control4 as they
+  find them, even when they have not changed.
+- A command for the brightness or color the Hatch Night Light and Hatch Volume
+  already show no longer fires a change event in Control4 programming.
+- The Hatch Night Light and Hatch Volume answer brightness queries with the
+  level they last reported, also during a fade or while the device can't be
+  reached.
+- Binding the Hatch Night Light or Hatch Volume to a different device shows it
+  offline until the new device reports.
+
 ## v20261111 - 2026-11-11
 
 <!-- #ifdef DRIVERCENTRAL -->
