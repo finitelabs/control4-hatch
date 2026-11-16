@@ -38,7 +38,11 @@ then pull the change in with `copier update`.
 **Common libraries (`src/lib/`):**
 
 - `bindings.lua`: binding management
-- `conditionals.lua`: conditional/programming UI management
+- `companions.lua`: gives each of a hub driver's bindings a companion driver,
+  one at a time: the one it had, a spare, or a new one, named and shown only in
+  its room
+- `conditionals.lua`: conditional/programming UI management; gives each one a
+  `sort_order`
 - `diagnostics.lua`: Cloud Monitoring, a DriverCentral build's reports of its
   memory use and errors (see [Cloud Monitoring](#cloud-monitoring))
 - `driver-filenames.lua`: every `.c4z` the repo builds, written in by the build
@@ -231,7 +235,7 @@ make test          # Run the Lua test suite (test/test_*.lua) and tools/test_*.p
 make support-code  # Print today's Support Code (see The Support Code)
 make dc-release    # Download the newest release's DriverCentral upload (TAG=v... for another)
 make fmt           # Format all code (Lua, Python, Markdown)
-make check         # Assert formatting and build secrets without rewriting, as CI does
+make check         # Assert formatting, docs list spacing, build secrets and conditional sort_order, as CI does
 make clean         # Remove build artifacts and dist/ (including driverpackager)
 make clean-all     # Remove everything (build artifacts, dist, deps, venv)
 ```
@@ -249,7 +253,9 @@ on a clean tree until something has populated `build/`.
 `make build` runs these in order, starting from a cleaned `build/`:
 
 1. **Format**: stylua (Lua), black (Python), mdformat (Markdown)
-1. **Preprocess**: resolve `#ifdef`/`#ifndef` directives per distribution
+1. **Preprocess**: resolve `#ifdef`/`#ifndef` directives per distribution. In
+   Markdown, where a removed directive sat between two list items, the list
+   keeps its own spacing; `make check` fails on a built list spaced unevenly
 1. **Generate squishy**: create squish manifests from .c4zproj files
 1. **Update driver.xml**: stamp version date and modified timestamp
 1. **Generate docs**: Markdown -> HTML -> PDF, plus README and DriverCentral's
@@ -385,6 +391,10 @@ runs `fn` with `print` collected and returns `ok, err, output`, and
 - `F.dofileBuild(path, build)` runs a Lua file as the `"drivercentral"` or
   `"oss"` build compiles it, with its `#ifdef` blocks applied. A driver loaded
   raw runs every arm.
+- `F.virtualClock(opts)` runs `C4:SetTimer` and `C4:GetTime` on a virtual clock,
+  so a test plays minutes of timers at once and in a fixed order. Drive it with
+  `run(ms)` and `at(ms, fn)`, read `now()` and `errors` (what a timer or promise
+  callback threw), then `restore()`.
 
 ### Persisted values
 
@@ -507,9 +517,9 @@ security add-generic-password -s control4-driver-build -a NAME -w
 In CI, the Build workflow passes `make build` each build secret by name from the
 repository's GitHub Actions secrets (add each name under Settings > Secrets and
 variables > Actions), so `make build` and the tools it runs never see any other
-secret. The template passes its own: `SUPPORT_CODE_SECRET` with a DriverCentral
-build, and the four `INFLUXDB_*` with Cloud Monitoring. A driver's own go in the
-copier answer `extra_build_secrets`
+secret. The template passes its own: `SUPPORT_CODE_SECRET`, `SUPPORT_PHONE` and
+`SUPPORT_EMAIL` with a DriverCentral build, and the four `INFLUXDB_*` with Cloud
+Monitoring. A driver's own go in the copier answer `extra_build_secrets`
 (`uvx copier update --trust --data extra_build_secrets="NAME OTHER"`), and
 `make check` fails when `.env.default` and the workflow disagree. Each value is
 a single line.
@@ -524,7 +534,16 @@ encrypted (`encryption="2"` on its `<script>`, set in the build copy of
 `driver.xml`), and `make package` deletes the plain-text squished Lua in
 `dist/<build>/source`, so neither the `.c4z` nor a CI artifact carries the value
 in the clear. Only `build/` keeps it, and that is gitignored and never uploaded.
-Keep placeholders out of documentation: a PDF is not encrypted.
+Keep placeholders out of documentation, since a PDF is not encrypted. The two
+exceptions are the support contacts a DriverCentral build's docs give, which are
+meant to be read: the secret only keeps them out of the repository. Write the
+phone number as `[%%SUPPORT_PHONE%%](tel:__SUPPORT_PHONE__)` and the email
+address as `[%%SUPPORT_EMAIL%%](mailto:__SUPPORT_EMAIL__)`, each inside
+`#ifdef DRIVERCENTRAL`. The link takes the `__NAME__` form, since mdformat
+escapes a `%` in a link. Set `SUPPORT_PHONE` with dashes, `+1-NNN-NNN-NNNN`, so
+it also makes the `tel:` link. Only the docs and their PDFs give the contacts.
+The README comes from the OSS docs, which never show them, and the listing
+description, `resources/drivercentral/description.md`, gives neither.
 
 A DriverCentral build is packaged encrypted with or without a secret.
 `make package` then opens every package of an encrypted build and fails unless
