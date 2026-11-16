@@ -27,23 +27,17 @@ or rooms are involved.
 <div style="font-size: small">
 
 - [System Requirements](#system-requirements)
-
 - [Included Drivers](#included-drivers)
-
   - [Hatch](#hatch)
   - [Hatch Sound Machine](#hatch-sound-machine)
   - [Hatch Night Light](#hatch-night-light)
   - [Hatch Volume](#hatch-volume)
-
 - [Installer Setup](#installer-setup)
-
   - [Installing the Drivers](#installing-the-drivers)
   - [Driver Setup](#driver-setup)
     - [Driver Properties](#driver-properties)
     - [Driver Actions](#driver-actions)
-
 - [Support](#support)
-
 - [Changelog](#changelog)
 
 </div>

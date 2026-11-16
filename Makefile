@@ -4,7 +4,6 @@
 PROJECT_NAME  := control4-hatch
 DISTRIBUTIONS := drivercentral oss
 README_DRIVER := hatch
-README_BUILD  := oss
 # A new repo has no driver until its first lands, and builds and verifies nothing.
 DRIVERS       := $(wildcard drivers/*/driver.xml)
 
@@ -111,11 +110,13 @@ fmt-md: $(VENV_STAMP)
 	[ -z "$$files" ] || $(VENV_PY) tools/docs.py fmt --wrap 80 $$files
 
 # ─── Check ────────────────────────────────────────────────────────────────────
-# Assert-only mirror of fmt (--check, no rewrite), and that the Build workflow
-# passes the build secrets .env.default declares; this is what CI runs.
+# Assert-only mirror of fmt (--check, no rewrite), that the Build workflow
+# passes the build secrets .env.default declares, and that every driver.xml
+# conditional has a sort_order, as Composer lists them in order only then; this
+# is what CI runs.
 
-.PHONY: check check-lua check-py check-md check-secrets
-check: check-lua check-py check-md check-secrets ## Assert all code is formatted and build secrets match (no rewrite)
+.PHONY: check check-lua check-py check-md check-docs check-secrets check-sort-order
+check: check-lua check-py check-md check-docs check-secrets check-sort-order ## Assert all code is formatted, built docs space their lists evenly, build secrets match and every conditional has a sort_order (no rewrite)
 
 check-lua:
 	@dirs=""; for d in ./drivers ./src ./test ./tools ./vendor; do \
@@ -132,8 +133,23 @@ check-md: $(VENV_STAMP)
 	done; \
 	[ -z "$$files" ] || $(VENV_PY) tools/docs.py fmt --check --wrap 80 $$files
 
+# Each doc as both builds make it: a list spaced unevenly between its items is
+# one a removed #ifdef/#endif line spaced out.
+ifeq ($(DRIVERS),)
+check-docs:
+else
+check-docs: preprocess $(VENV_STAMP)
+	@files=""; for g in build/*/drivers/*/www/documentation/*.md build/*/documentation/*.md; do \
+		[ -e "$$g" ] && files="$$files $$g"; \
+	done; \
+	[ -z "$$files" ] || $(VENV_PY) tools/docs.py check-lists $$files
+endif
+
 check-secrets:
 	@./tools/preprocess.py --check-secrets
+
+check-sort-order:
+	@[ -z "$(DRIVERS)" ] || python3 tools/package.py check-sort-order $(DRIVERS)
 
 # ─── Preprocess ───────────────────────────────────────────────────────────────
 
@@ -183,12 +199,13 @@ update-xml-modified: $(VENV_STAMP)
 .PHONY: docs docs-html docs-pdf docs-readme docs-drivercentral
 docs: docs-readme docs-html docs-pdf docs-drivercentral ## Generate all documentation
 
+# The README is committed, so it comes from the OSS docs, which never carry the support contacts.
 
 docs-readme: preprocess $(VENV_STAMP)
 	rm -rf ./images
-	@if [ -d build/$(README_BUILD)/drivers/$(README_DRIVER)/www/documentation/images ]; then cp -r build/$(README_BUILD)/drivers/$(README_DRIVER)/www/documentation/images .; fi
+	@if [ -d build/oss/drivers/$(README_DRIVER)/www/documentation/images ]; then cp -r build/oss/drivers/$(README_DRIVER)/www/documentation/images .; fi
 	$(VENV_PY) tools/docs.py readme \
-		build/$(README_BUILD)/drivers/$(README_DRIVER)/www/documentation/index.md README.md
+		build/oss/drivers/$(README_DRIVER)/www/documentation/index.md README.md
 
 
 # What a DriverCentral upload needs beyond the zip and the PDFs: the listing's
