@@ -115,6 +115,7 @@
     </actions>
     <commands/>
   </config>
+  <!-- The light's capabilities are the build's, written from the profile the driver gives Light.new. -->
   <capabilities/>
   <proxies>
     <proxy proxybindingid="5001" primary="True" name="Hatch Volume">light_v2</proxy>

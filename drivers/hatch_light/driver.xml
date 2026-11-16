@@ -104,6 +104,7 @@
     </actions>
     <commands/>
   </config>
+  <!-- The light's capabilities are the build's, written from the profile the driver gives Light.new. -->
   <capabilities/>
   <proxies>
     <proxy proxybindingid="5001" primary="True" name="Hatch Night Light">light_v2</proxy>
