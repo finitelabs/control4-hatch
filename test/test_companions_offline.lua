@@ -99,7 +99,7 @@ local function toldTo(ns, fn)
   for i = from + 1, #told do
     local t = told[i]
     if t.id == binding(ns) and t.command == "UPDATE_DISCONNECT" then
-      out[#out + 1] = t.params and t.params.suspended and "disconnected (suspended)" or "disconnected"
+      out[#out + 1] = "disconnected"
     elseif t.id == binding(ns) and t.command == "UPDATE_STATE" then
       local state = DeserializeSafe(t.params.state) or {}
       out[#out + 1] = string.format(
@@ -157,15 +157,11 @@ do
   T.eq("and nothing is published", published, before)
 end
 
-T.section("A connection the driver restarts itself is suspended while it comes up, even after a lost link")
+T.section("A connection the driver restarts itself tells a companion it is disconnected while it comes up")
 do
   connectOnStart = false
   EC.Reconnect()
-  T.eq(
-    "the night light asking for its state",
-    toldTo("HATCH_LIGHT", refresh("HATCH_LIGHT")),
-    "disconnected (suspended)"
-  )
+  T.eq("the night light asking for its state", toldTo("HATCH_LIGHT", refresh("HATCH_LIGHT")), "disconnected")
   connectOnStart = true
 end
 

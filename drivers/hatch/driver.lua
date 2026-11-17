@@ -85,10 +85,6 @@ end
 -- State push to companions
 --------------------------------------------------------------------------------
 
---- Whether the account is not connected for a reason of its own, or has not connected yet since a load, so the devices
---- are as they were (UPDATE_DISCONNECT suspended), rather than because its link to Hatch was lost.
-local gSuspended = true
-
 --- While the account is not connected, a companion is told so instead of the last state, which it would show as live.
 --- @param binding table
 --- @return boolean told
@@ -96,7 +92,7 @@ local function toldDisconnected(binding)
   if connection and connection:isConnected() then
     return false
   end
-  SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", { suspended = gSuspended or nil }, "NOTIFY")
+  SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
   return true
 end
 
@@ -237,7 +233,7 @@ local function pushDisconnect()
   for _, ns in ipairs({ NS_MEDIA, NS_LIGHT, NS_VOLUME }) do
     for _, binding in pairs(bindings:getDynamicBindings(ns)) do
       if binding.bindingId then
-        SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", { suspended = gSuspended or nil }, "NOTIFY")
+        SendToProxy(binding.bindingId, "UPDATE_DISCONNECT", {}, "NOTIFY")
       end
     end
   end
@@ -560,8 +556,6 @@ local function setConnectionStatus(text)
 end
 
 local function startConnection()
-  -- A connection started here, or not started at all, is the driver's own doing; only a lost link clears this.
-  gSuspended = true
   if connection then
     connection:stop()
     connection = nil
@@ -640,7 +634,6 @@ local function startConnection()
     end,
     onDisconnected = function()
       setConnectionStatus("Disconnected (retrying)")
-      gSuspended = false
       pushDisconnect()
     end,
   })

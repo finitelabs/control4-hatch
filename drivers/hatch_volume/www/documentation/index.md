@@ -88,7 +88,7 @@ the volume and the dimmer stay in step without fighting each other.
   without starting playback
 - Real-time two-way synchronization with the Hatch device through the account
   driver, with no Control4 programming required; while the account has lost its
-  connection to Hatch, the volume shows off
+  connection to Hatch, the volume shows offline and keeps its level
 
 # <span style="color:#13294C">Compatibility</span>
 

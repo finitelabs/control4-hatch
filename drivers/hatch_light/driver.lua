@@ -69,9 +69,8 @@ local function applyState(tParams)
   local online = state.online ~= false
   UpdateProperty("Driver Status", online and "Connected" or "Device offline")
   if not online then
-    -- A device Hatch has lost reads off.
     nightLight:forget()
-    light:lost(false)
+    light:lost()
     return
   end
   light:declare(LightAdapter.DEVICE)
@@ -83,9 +82,8 @@ RFP[COORD_BINDING] = function(_idBinding, strCommand, tParams)
     applyState(tParams)
   elseif strCommand == "UPDATE_DISCONNECT" then
     UpdateProperty("Driver Status", "Coordinator offline")
-    -- A lost link to Hatch reads off. The account's own stop leaves the light as it was, and its next report tells it.
     nightLight:forget()
-    light:lost(toboolean(Select(tParams, "suspended")))
+    light:lost()
   end
 end
 
@@ -131,7 +129,7 @@ OBC[COORD_BINDING] = function(_idBinding, _strClass, bIsBound)
   nightLight:forget()
   -- At a controller start this runs before late init, whose start tells offline itself.
   if gInitialized then
-    light:lost(true)
+    light:lost()
   end
   if bIsBound then
     refresh()
