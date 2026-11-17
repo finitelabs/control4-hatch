@@ -248,6 +248,9 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Changed
 
+- While the account has lost its connection to Hatch, or a device is offline,
+  the Hatch Night Light and Hatch Volume show offline and keep their level and
+  keypad button LEDs, where they used to show off.
 - The Hatch Night Light and Hatch Volume show a change in Control4 as soon as it
   is sent, and put it right within 5 seconds if Hatch does not take it.
 - On while the Hatch Volume plays a sound keeps it playing, where it used to

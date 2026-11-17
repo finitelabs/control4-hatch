@@ -127,7 +127,7 @@ function nightLight.load(h, state)
     end,
     suspend = function()
       linked = false
-      ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
+      ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
     end,
     resume = function()
       linked = true
@@ -223,7 +223,7 @@ function volume.load(h, state)
     end,
     suspend = function()
       linked = false
-      ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
+      ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
     end,
     resume = function()
       linked = true

@@ -76,7 +76,7 @@ in a project.
   that color at its next turn-on
 - Real-time state synchronization with the Hatch device through the account
   driver; while the account has lost its connection to Hatch, the light shows
-  off
+  offline and keeps its level
 
 # <span style="color:#13294C">Compatibility</span>
 

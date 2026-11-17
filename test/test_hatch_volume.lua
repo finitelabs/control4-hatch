@@ -1,5 +1,5 @@
 -- The Hatch Volume dimmer as a light: the brightness preset a level names is told with it, a rebind forgets the
--- device it was bound to, and a lost link to Hatch reads off while the account's own stop leaves it as it was.
+-- device it was bound to, and a lost link to Hatch shows it offline at the level it had.
 --
 -- Run from the driver root:
 --   make test
@@ -137,15 +137,15 @@ T.differs("and a Toggle before the new device reports turns it on, not off as th
 T.eq("and a Toggle before the new device reports does nothing", commands(), {})
 report(false, 0)
 
-T.section("a lost link to Hatch reads off; the account's own stop leaves the volume as it was")
+T.section("a lost link to Hatch shows the volume offline, keeping its level")
 report(true, 40)
 mark()
 ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
-T.eq("a lost link: offline, then off", toldInOrder(), { "online=false", "level=0" })
+T.eq("a lost link: offline only", toldInOrder(), { "online=false" })
 report(true, 40)
 mark()
-ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", { suspended = true })
-T.eq("the account's own stop: offline only", toldInOrder(), { "online=false" })
+ReceivedFromProxy(COORD, "UPDATE_DISCONNECT", {})
+T.eq("the account's own stop: the same", toldInOrder(), { "online=false" })
 mark()
 proxy("GET_LIGHT_LEVEL")
 T.differs("Get Light Level while the account is stopped: unanswered", R_GET_LEVEL)
