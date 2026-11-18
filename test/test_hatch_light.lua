@@ -476,4 +476,34 @@ do
   end
 end
 
+T.section("a Director restart brings the Connected variable back at init")
+T.truthy("the light has a Connected variable", Variables["Connected"] ~= nil)
+ShimRestartDirector()
+T.unload("^hatch", "^lib%.")
+ShimDofileBuild(HERE .. "../drivers/hatch_light/driver.lua", "oss")
+OnDriverInit()
+T.truthy("its Connected variable is back at init, before the light reports", Variables["Connected"] ~= nil)
+ShimLateInit()
+report(true, GREEN_RGB)
+T.eq("and it reads connected once the light reports", Variables["Connected"], "1")
+
+T.section("an On right after an Off, before Hatch reports either, is told once each")
+mark()
+proxy("OFF")
+proxy("ON")
+-- Hatch reports late: the on from before both, the Off's, then the On's.
+report(true, GREEN_RGB)
+report(false)
+report(true, GREEN_RGB)
+ShimFireTimers()
+do
+  local levels = {}
+  for _, e in ipairs(toldInOrder()) do
+    if e:find("^level=") then
+      levels[#levels + 1] = e
+    end
+  end
+  T.eq("off and on, and not off and on again", levels, { "level=0", "level=100" })
+end
+
 T.finish()
