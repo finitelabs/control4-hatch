@@ -74,6 +74,7 @@ in a project.
   the lighting in a project
 - A color set while the light is off leaves it off, and the light comes on in
   that color at its next turn-on
+- Control4 load groups
 - Real-time state synchronization with the Hatch device through the account
   driver; while the account has lost its connection to Hatch, the light shows
   offline and keeps its level

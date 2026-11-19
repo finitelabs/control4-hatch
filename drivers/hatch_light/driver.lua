@@ -54,6 +54,7 @@ local PROFILE = {
   dims = true,
   color = true,
   known = true,
+  loadGroups = true,
 }
 
 local light = Light.new(nightLight, PROFILE)

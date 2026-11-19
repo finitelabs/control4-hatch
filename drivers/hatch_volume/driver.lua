@@ -163,6 +163,7 @@ local PROFILE = {
   api = Light.API,
   dims = true,
   known = true,
+  loadGroups = true,
 }
 
 local light = Light.new(volume, PROFILE)
