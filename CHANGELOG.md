@@ -20,6 +20,11 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ## Unreleased
 
+### Added
+
+- Added Control4 load groups to the Hatch Night Light and Hatch Volume. Each
+  joins a load group and follows the group's level, ramps and sync.
+
 ### Fixed
 
 - Fixed the Hatch Night Light sometimes going to its old brightness when its

@@ -86,6 +86,7 @@ the volume and the dimmer stay in step without fighting each other.
 - On resumes the last sound at the current volume; off stops playback
 - Volume can be staged while stopped, since the Hatch accepts a volume change
   without starting playback
+- Control4 load groups
 - Real-time two-way synchronization with the Hatch device through the account
   driver, with no Control4 programming required; while the account has lost its
   connection to Hatch, the volume shows offline and keeps its level
