@@ -34,23 +34,25 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Changed
 
-- While the account has lost its connection to Hatch, or a device is offline,
-  the Hatch Night Light and Hatch Volume show offline and keep their level and
-  keypad button LEDs, where they used to show off.
-- The Hatch Night Light and Hatch Volume show a change in Control4 as soon as it
-  is sent, and put it right within 5 seconds if Hatch does not take it.
-- On while the Hatch Volume plays a sound keeps it playing, where it used to
-  start the chosen favorite again.
-- After a driver restart or a reconnect the Hatch Night Light and Hatch Volume
-  report their brightness, and the Night Light its color, to Control4 as they
-  find them, even when they have not changed.
-- A command for the brightness or color the Hatch Night Light and Hatch Volume
-  already show no longer fires a change event in Control4 programming.
-- The Hatch Night Light and Hatch Volume answer brightness queries with the
-  level they last reported, also during a fade or while the device can't be
-  reached.
-- Binding the Hatch Night Light or Hatch Volume to a different device shows it
-  offline until the new device reports.
+- Changed the Hatch Night Light and Hatch Volume to show offline and keep their
+  level and keypad button LEDs while the account has lost its connection to
+  Hatch, or a device is offline, where they used to show off.
+- Changed the Hatch Night Light and Hatch Volume to show a change in Control4 as
+  soon as it is sent, and put it right within 5 seconds if Hatch does not take
+  it.
+- Changed the Hatch Volume to keep playing when it is turned On while it plays a
+  sound, where it used to start the chosen favorite again.
+- Changed the Hatch Night Light and Hatch Volume to report their brightness, and
+  the Night Light its color, to Control4 as they find them after a driver
+  restart or a reconnect, even when they have not changed.
+- Changed the Hatch Night Light and Hatch Volume to no longer fire a change
+  event in Control4 programming for a command setting the brightness or color
+  they already show.
+- Changed the Hatch Night Light and Hatch Volume to answer brightness queries
+  with the level they last reported, also during a fade or while the device
+  can't be reached.
+- Changed the Hatch Night Light or Hatch Volume to show offline after it is
+  bound to a different device, until the new device reports.
 
 ## v20261111 - 2026-11-11
 
@@ -109,9 +111,9 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
   which also fire for playback started from the Hatch app or the device itself.
 - Added Programming conditionals to the Hatch Sound Machine for whether it is
   playing, and for which sound or favorite is playing.
-- Sounds and favorites now refresh on their own when they change in the Hatch
+- Added automatic refresh of sounds and favorites when they change in the Hatch
   app, with no driver reload.
-- The Hatch Sound Machine now behaves as a normal room source, so starting it
+- Added normal room source behavior to the Hatch Sound Machine, so starting it
   takes the room and selecting another source stops it.
 
 ### Fixed
@@ -141,17 +143,17 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 
 ### Added
 
-- **Hatch** account driver, which signs in to the Hatch cloud, finds the devices
-  on the account and shares one connection among them, reconnecting on its own
-  after a network drop or controller restart.
-- **Hatch Sound Machine** companion, which plays a device's sounds and favorites
-  as a Control4 media source in its room with no amplifier needed, with now
-  playing, cover art, volume and mute.
-- **Hatch Night Light** companion, which presents a device's night light as a
-  standard Control4 light with on and off, brightness, full color and Advanced
-  Lighting Scenes.
-- Play Sound, Play Favorite and Stop programming commands, with sound and
+- Added the **Hatch** account driver, which signs in to the Hatch cloud, finds
+  the devices on the account and shares one connection among them, reconnecting
+  on its own after a network drop or controller restart.
+- Added the **Hatch Sound Machine** companion, which plays a device's sounds and
+  favorites as a Control4 media source in its room with no amplifier needed,
+  with now playing, cover art, volume and mute.
+- Added the **Hatch Night Light** companion, which presents a device's night
+  light as a standard Control4 light with on and off, brightness, full color and
+  Advanced Lighting Scenes.
+- Added Play Sound, Play Favorite and Stop programming commands, with sound and
   favorite lists populated from the device's own catalog.
-- Cover art on the now-playing card and in the browse lists, for sounds and
-  favorites.
-- Support for Rest+ and Restore, including Restore's own sounds.
+- Added cover art on the now-playing card and in the browse lists, for sounds
+  and favorites.
+- Added support for Rest+ and Restore, including Restore's own sounds.
