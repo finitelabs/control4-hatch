@@ -40,14 +40,14 @@ Template for a new release entry (copy below the heading, fill in, uncomment):
 - Changed the Hatch Night Light and Hatch Volume to show a change in Control4 as
   soon as it is sent, and put it right within 5 seconds if Hatch does not take
   it.
-- Changed On while the Hatch Volume plays a sound to keep it playing, where it
-  used to start the chosen favorite again.
+- Changed the Hatch Volume to keep playing when it is turned On while it plays a
+  sound, where it used to start the chosen favorite again.
 - Changed the Hatch Night Light and Hatch Volume to report their brightness, and
   the Night Light its color, to Control4 as they find them after a driver
   restart or a reconnect, even when they have not changed.
 - Changed the Hatch Night Light and Hatch Volume to no longer fire a change
-  event in Control4 programming for a brightness or color command they already
-  show.
+  event in Control4 programming for a command setting the brightness or color
+  they already show.
 - Changed the Hatch Night Light and Hatch Volume to answer brightness queries
   with the level they last reported, also during a fade or while the device
   can't be reached.
